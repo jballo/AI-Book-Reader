@@ -39,6 +39,7 @@ export async function POST(request: Request) {
             response: result.content
         })
     } catch(error) {
+        console.log("Error: ", error);
         return NextResponse.json({
             sucess: false,
             error: "Failed to look up user in db."
