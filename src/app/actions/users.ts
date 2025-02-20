@@ -29,6 +29,7 @@ export async function createUser(id: string, email: string){
 
         return result;
     } catch (error) {
+        console.log("Error: ", error);
         return {
             success: false,
             error: "Failed to add user to db.",
@@ -64,6 +65,7 @@ export async function userExists(id: string){
         return result;
 
     } catch (error) {
+        console.log("Error: ", error);
         return {
             success: false,
             error: "Failed to look up user in db.",
