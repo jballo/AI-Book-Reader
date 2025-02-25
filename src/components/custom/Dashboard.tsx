@@ -33,8 +33,7 @@ export default function Dashboard({ createUser, userExists }: DashboardProps){
     const { user, isSignedIn } = useUser();
     const [numPages, setNumPages] = useState<number>();
     const [pageNumber, setPageNumber] = useState<number>();
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const [data, setData] = useState<File | null>(null);
+    // const [data, setData] = useState<File | null>(null);
     const [pdfFile, setPdfFile] = useState<string | null>(null);
 
 
@@ -71,11 +70,11 @@ export default function Dashboard({ createUser, userExists }: DashboardProps){
     const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) {
-            setData(null);
+            // setData(null);
             setPdfFile(null);
             return;
         }
-        setData(file);
+        // setData(file);
 
         const fileURL = URL.createObjectURL(file);
         setPdfFile(fileURL);
