@@ -88,41 +88,39 @@ export default function Dashboard({ createUser, userExists, uploadPdf, uploadPdf
     }, [user, isSignedIn]);
 
     const extractAllPagesText = async (pdfUrl: string) => {
-        if (!pdfUrl) return;
+    if (!pdfUrl) return;
+    
+    try {
         
-        try {
-            setIsExtracting(true);
-            setExtractionError(null);
+        // Load the PDF document
+        const loadingTask = pdfjs.getDocument(pdfUrl);
+        const pdf = await loadingTask.promise;
+        
+        const extractedText: string[] = [];
+        
+        // Process each page
+        for (let i = 1; i <= pdf.numPages; i++) {
             
-            // Load the PDF document
-            const loadingTask = pdfjs.getDocument(pdfUrl);
-            const pdf = await loadingTask.promise;
+            const page = await pdf.getPage(i);
             
-            const extractedText: string[] = [];
             
-            // Process each page
-            for (let i = 1; i <= pdf.numPages; i++) {
-                // Get the page
-                const page = await pdf.getPage(i);
-                
-                // Extract text content
-                const textContent = await page.getTextContent();
-                
-                // Concatenate the text items
-                const pageText = textContent.items.map((item: any) => item.str).join(' ');
-                extractedText.push(pageText);
-            }
+            const textContent = await page.getTextContent();
             
-            setPagesText(extractedText);
-            console.log(`Extracted text from ${extractedText.length} pages`);
-            return extractedText;
-        } catch (error) {
-            console.error("Error extracting PDF text:", error);
-            setExtractionError("Failed to extract text from PDF");
-        } finally {
-            setIsExtracting(false);
+            
+            const pageText = textContent.items
+                .map(item => ('str' in item ? item.str : ''))
+                .join(' ');
+            extractedText.push(pageText);
         }
-    };
+        
+        setPagesText(extractedText);
+        console.log(`Extracted text from ${extractedText.length} pages`);
+        return extractedText;
+    } catch (error) {
+        console.error("Error extracting PDF text:", error);
+    } finally {
+    }
+};
 
 
     const handleFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
