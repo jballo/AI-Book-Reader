@@ -1,7 +1,7 @@
 # PlayAI Book Reader
 
 ## Overview
-PlayAI Book Reader is a web application that allows users to upload and read PDF files while providing text-to-speech functionality using PlayAI’s API. The app enables smooth navigation between pages and audio playback of the displayed text.
+PlayAI Book Reader is a web application that allows users to upload and read PDF files while providing text-to-speech functionality using PlayAI's API. The app enables smooth navigation between pages and audio playback of the displayed text.
 
 ## Features
 - **PDF Upload**: Users can upload a PDF file through the web interface.
@@ -15,6 +15,7 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
 - **Backend**: Express
 - **File Storage**: UploadThing
 - **APIs**: PlayAI Text-to-Speech API
+- **DB**: Neon Postgres
 
 ## Setup Instructions
 1. **Clone the Repository**
@@ -29,7 +30,34 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
     npm install  # Install backend dependencies
     ```
 
-3. **Run the Application**
+3. **Environment Variables Setup**
+    - Create a [.env.local](http://_vscodecontentref_/1) file in the root directory with:
+      ```
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+      CLERK_SECRET_KEY=your_clerk_secret_key
+      NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+      NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+      NEXT_API_SECRET=your_api_secret
+      API_KEY=your_api_key
+      ```
+
+    - Create a [.env](http://_vscodecontentref_/2) file in the server directory with:
+      ```
+      PGHOST=your_postgres_host
+      PGHOST_UNPOOLED=your_postgres_unpooled_host
+      PGUSER=your_postgres_user
+      PGDATABASE=your_postgres_database
+      PGPASSWORD=your_postgres_password
+      
+      API_KEY=your_api_key
+      
+      UPLOADTHING_TOKEN=your_uploadthing_token
+      
+      PLAYAI_AUTH_KEY=your_playai_auth_key
+      PLAYAI_USER_ID=your_playai_user_id
+      ```
+
+4. **Run the Application**
     - Start the Backend:
         ```sh
         cd server
@@ -40,4 +68,4 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
         npm run dev
         ```
 
-4. Access the Application Open http://localhost:3000 in your web browser.
+5. Access the Application Open http://localhost:3000 in your web browser.
