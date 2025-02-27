@@ -86,7 +86,7 @@ export default function Dashboard({ createUser, userExists, uploadPdf, uploadPdf
 
     const [isDragging, setIsDragging] = useState<boolean>(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
-    const [pageRendering, setPageRendering] = useState(false);
+    // const [pageRendering, setPageRendering] = useState(false);
 
 
     useEffect(() => {
@@ -117,78 +117,39 @@ export default function Dashboard({ createUser, userExists, uploadPdf, uploadPdf
     }, [user, isSignedIn]);
 
     const extractAllPagesText = async (pdfUrl: string) => {
-    if (!pdfUrl) return;
-    
-    try {
+        if (!pdfUrl) return;
         
-        // Load the PDF document
-        const loadingTask = pdfjs.getDocument(pdfUrl);
-        const pdf = await loadingTask.promise;
-        
-        const extractedText: string[] = [];
-        
-        // Process each page
-        for (let i = 1; i <= pdf.numPages; i++) {
+        try {
             
-            const page = await pdf.getPage(i);
+            // Load the PDF document
+            const loadingTask = pdfjs.getDocument(pdfUrl);
+            const pdf = await loadingTask.promise;
             
+            const extractedText: string[] = [];
             
-            const textContent = await page.getTextContent();
+            // Process each page
+            for (let i = 1; i <= pdf.numPages; i++) {
+                
+                const page = await pdf.getPage(i);
+                
+                
+                const textContent = await page.getTextContent();
+                
+                
+                const pageText = textContent.items
+                    .map(item => ('str' in item ? item.str : ''))
+                    .join(' ');
+                extractedText.push(pageText);
+            }
             
-            
-            const pageText = textContent.items
-                .map(item => ('str' in item ? item.str : ''))
-                .join(' ');
-            extractedText.push(pageText);
+            setPagesText(extractedText);
+            console.log(`Extracted text from ${extractedText.length} pages`);
+            return extractedText;
+        } catch (error) {
+            console.error("Error extracting PDF text:", error);
         }
-        
-        setPagesText(extractedText);
-        console.log(`Extracted text from ${extractedText.length} pages`);
-        return extractedText;
-    } catch (error) {
-        console.error("Error extracting PDF text:", error);
-    } finally {
-    }
-};
+    };
 
-
-    const handleFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) {
-            // setData(null);
-            setPdfFile(null);
-            return;
-        }
-        // setData(file);
-
-        const actionFormData = new FormData();
-        actionFormData.append("pdf", file);
-
-        const uploadpdf_response = await uploadPdf(actionFormData);
-
-        if (!uploadpdf_response.success){
-            console.error("PDF upload failed");
-            return;
-        }
-        
-        const pdfUrl = uploadpdf_response.response?.url || "";
-        const pdfKey = uploadpdf_response.response?.key || "";
-        setPdfFile(pdfUrl)
-
-        if (!(pdfUrl && pdfKey)){
-            console.error("No pdf url and/or returned from upload");
-            return;
-        }
-        const pdfText = await extractAllPagesText(pdfUrl);
-        console.log("pdfText: ", pdfText);
-
-        if(!(user && isSignedIn)){
-            console.error("User not signed in and/or authenticated...");
-            return;
-        }
-        await uploadPdfMetadata(user.id, pdfKey, pdfUrl, pdfText || []);
-
-    }, [user, isSignedIn, uploadPdf, uploadPdfMetadata, extractAllPagesText]);
 
     function onDocumentLoadSuccess({ numPages }: { numPages: number }): void {
         setNumPages(numPages);
@@ -196,7 +157,7 @@ export default function Dashboard({ createUser, userExists, uploadPdf, uploadPdf
     }
 
     function changePage(offset: number) {
-        setPageRendering(true);
+        // setPageRendering(true);
         setPageNumber(prevPageNumber => (prevPageNumber || 1) + offset);
     }
 
@@ -304,8 +265,8 @@ export default function Dashboard({ createUser, userExists, uploadPdf, uploadPdf
         return (
             <Page 
             pageNumber={pageNumber}
-            onRenderSuccess={() => setPageRendering(false)}
-            onRenderError={() => setPageRendering(false)}
+            // onRenderSuccess={() => setPageRendering(false)}
+            // onRenderError={() => setPageRendering(false)}
             renderTextLayer={true}
             renderAnnotationLayer={true}
             loading={<div className="flex justify-center p-10"><div className="animate-pulse">Loading page...</div></div>}
