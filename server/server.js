@@ -1,11 +1,23 @@
-const express = require("express");
-const { Pool } = require("pg");
-require("dotenv").config();
+import express from "express";
+import pkg from "pg";
+const { Pool } = pkg;
+// require("dotenv").config();
+import dotenv from "dotenv";
 const app = express();
-const cors = require("cors");
-const multer = require("multer");
-const { UTApi } = require("uploadthing/server");
+// const cors = require("cors");
+import cors from "cors";
+// const multer = require("multer");
+import multer from "multer";
+// const { UTApi } = require("uploadthing/server");
+import * as uploadthingServer from "uploadthing/server";
+const { UTApi } = uploadthingServer;
+import nodeFetch from "node-fetch";
+const fetch = nodeFetch;
+
+// const fetch = require("node-fetch");
 const port = 5001;
+
+dotenv.config();
 
 app.use(cors());
 app.use(express.json());
@@ -138,7 +150,7 @@ app.post("/upload-pdf", upload.single("pdf"), async (req, res) => {
 
     const response = await utapi.uploadFiles([fileData]);
 
-    response_body = {
+    const response_body = {
       url: response[0].data.ufsUrl,
       key: response[0].data.key,
     };
@@ -194,6 +206,97 @@ app.post("/upload-pdf-metadata", async (req, res) => {
     res.status(500).json({
       error: `Failed to upload pdf metadata to db.`,
     });
+  }
+});
+
+app.post("/text-to-speech", async (req, res) => {
+  const apiKey = req.headers["x-api-key"];
+  if (apiKey !== process.env.API_KEY) {
+    res.status(401).json({
+      error: "Unauthorized",
+    });
+    return;
+  } else {
+    console.log("Authorized");
+  }
+
+  try {
+    const { text } = req.body;
+    if (!text) {
+      return res.status(400).json({
+        error: "No text provided",
+      });
+    }
+
+    console.log(`Converting text to speech (${text.length} characters)...`);
+
+    // Ensure proper headers
+    const options = {
+      method: "POST",
+      headers: {
+        AUTHORIZATION: process.env.PLAYAI_AUTH_KEY,
+        "X-USER-ID": process.env.PLAYAI_USER_ID,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "PlayDialog",
+        text: text,
+        voice:
+          "s3://voice-cloning-zero-shot/65977f5e-a22a-4b36-861b-ecede19bdd65/original/manifest.json",
+        outputFormat: "mp3",
+      }),
+    };
+
+    // Make the API call with direct streaming
+    const playAIResponse = await fetch(
+      "https://api.play.ai/api/v1/tts/stream",
+      options
+    );
+
+    if (!playAIResponse.ok) {
+      throw new Error(
+        `PlayAI API error: ${playAIResponse.status} ${playAIResponse.statusText}`
+      );
+    }
+
+    // Set proper headers for audio streaming
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Transfer-Encoding", "chunked");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    // Improve streaming by piping with error handling
+    const stream = playAIResponse.body;
+
+    // Handle stream errors
+    stream.on("error", (err) => {
+      console.error("Stream error:", err);
+      // If we haven't sent headers yet, send an error response
+      if (!res.headersSent) {
+        res.status(500).json({
+          error: `Streaming error: ${err.message}`,
+        });
+      } else {
+        // Otherwise just end the response
+        res.end();
+      }
+    });
+
+    // Use pipe for efficient streaming
+    stream.pipe(res).on("error", (err) => {
+      console.error("Pipe error:", err);
+    });
+
+    console.log("Audio stream started");
+  } catch (error) {
+    console.error("Error during text-to-speech conversion:", error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: `Failed to convert text to speech: ${error.message}`,
+      });
+    } else {
+      res.end();
+    }
   }
 });
 

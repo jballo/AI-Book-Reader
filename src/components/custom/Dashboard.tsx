@@ -2,10 +2,11 @@
 
 import { SignedIn, SignedOut, SignInButton, SignOutButton, useUser } from "@clerk/nextjs";
 import { Button } from "../ui/button";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/TextLayer.css'; // Import the TextLayer CSS
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css'; // Import AnnotationLayer CSS, if needed
+import AudioPlayer from "./Audioplayer";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -41,14 +42,28 @@ interface PdfProps {
     ) => Promise<{ success: boolean; response?: boolean; error?: string; }>;
 }
 
+interface AudioProps {
+    convertTextToSpeech: (
+        text: string
+    ) => Promise<{
+        audioUrl: string;
+        success: boolean;
+        error?: string;
+    }>;
+}
+
+
 interface DashboardProps {
     createUser: UserProps["createUser"];
     userExists: UserProps["userExists"];
     uploadPdf: PdfProps["uploadPdf"];
     uploadPdfMetadata: PdfProps["uploadPdfMetadata"];
+    convertTextToSpeech: AudioProps["convertTextToSpeech"];
 }
 
-export default function Dashboard({ createUser, userExists, uploadPdf, uploadPdfMetadata }: DashboardProps){
+
+
+export default function Dashboard({ createUser, userExists, uploadPdf, uploadPdfMetadata, convertTextToSpeech }: DashboardProps){
     const { user, isSignedIn } = useUser();
     const [numPages, setNumPages] = useState<number>();
     const [pageNumber, setPageNumber] = useState<number>();
@@ -226,6 +241,10 @@ export default function Dashboard({ createUser, userExists, uploadPdf, uploadPdf
                         <div className="max-h-40 overflow-y-auto bg-gray-50 p-3 text-sm">
                             {pagesText[pageNumber-1] || "No text found on this page"}
                         </div>
+                        <AudioPlayer 
+                            text={pagesText[pageNumber-1] || ""}
+                            convertTextToSpeech={convertTextToSpeech}
+                        />
                         <p className="text-xs text-gray-500 mt-2">
                             Total pages extracted: {pagesText.length}
                         </p>
