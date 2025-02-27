@@ -24,12 +24,25 @@ interface UserProps {
     ) => Promise<{ success: boolean; response?: boolean; error?: string; }>;
 }
 
+interface PDF {
+    url: string,
+    key: string,
+}
+
+interface PdfProps {
+
+    uploadPdf: (
+        pdf: FormData
+    ) => Promise<{success: boolean; response?: PDF; error?: string; }>;
+}
+
 interface DashboardProps {
     createUser: UserProps["createUser"];
     userExists: UserProps["userExists"];
+    uploadPdf: PdfProps["uploadPdf"];
 }
 
-export default function Dashboard({ createUser, userExists }: DashboardProps){
+export default function Dashboard({ createUser, userExists, uploadPdf }: DashboardProps){
     const { user, isSignedIn } = useUser();
     const [numPages, setNumPages] = useState<number>();
     const [pageNumber, setPageNumber] = useState<number>();
@@ -67,7 +80,7 @@ export default function Dashboard({ createUser, userExists }: DashboardProps){
         userSaved();
     }, [user, isSignedIn]);
 
-    const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) {
             // setData(null);
@@ -76,8 +89,15 @@ export default function Dashboard({ createUser, userExists }: DashboardProps){
         }
         // setData(file);
 
-        const fileURL = URL.createObjectURL(file);
-        setPdfFile(fileURL);
+        const actionFormData = new FormData();
+        actionFormData.append("pdf", file);
+
+        const uploadpdf_response = await uploadPdf(actionFormData);
+
+        if(uploadpdf_response.success){
+            // uploadpdf_response.response will return object
+            setPdfFile(uploadpdf_response.response?.url || "")
+        }
     }, []);
 
     function onDocumentLoadSuccess({ numPages }: { numPages: number }): void {

@@ -3,9 +3,18 @@ const { Pool } = require("pg");
 require("dotenv").config();
 const app = express();
 const cors = require("cors");
+const multer = require("multer");
+const { UTApi } = require("uploadthing/server");
 const port = 5001;
 
 app.use(cors());
+
+const utapi = new UTApi({
+  token: process.env.UPLOADTHING_TOKEN,
+});
+
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
 const { PGHOST, PGDATABASE, PGUSER, PGPASSWORD } = process.env;
 
@@ -105,6 +114,44 @@ app.post("/user-exists", async (req, res) => {
     });
   } finally {
     client.release();
+  }
+});
+
+app.post("/upload-pdf", upload.single("pdf"), async (req, res) => {
+  console.log("\n\n------------ upload-pdf ------------\n\n");
+
+  const apiKey = req.headers["x-api-key"];
+  if (apiKey !== process.env.API_KEY) {
+    res.status(401).json({
+      error: "Unauthorized",
+    });
+    return;
+  } else {
+    console.log("Authorized");
+  }
+
+  try {
+    const fileData = new File([req.file.buffer], req.file.originalname, {
+      type: req.file.mimetype,
+    });
+
+    const response = await utapi.uploadFiles([fileData]);
+
+    response_body = {
+      url: response[0].data.ufsUrl,
+      key: response[0].data.key,
+    };
+
+    console.log("response_body: ", response_body);
+
+    res.status(200).json({
+      content: response_body,
+    });
+  } catch (error) {
+    console.log("Error: ", error);
+    res.status(500).json({
+      error: `Failed to upload pdf to uploadthing.`,
+    });
   }
 });
 
