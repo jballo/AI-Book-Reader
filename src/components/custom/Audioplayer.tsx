@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "../ui/button";
 import { Loader2 } from "lucide-react";
 
@@ -25,82 +25,87 @@ export default function AudioPlayer({ text, convertTextToSpeech }: AudioPlayerCo
     const [error, setError] = useState<string | null>(null);
     const [progress, setProgress] = useState(0);
     const audioRef = useRef<HTMLAudioElement | null>(null);
-
-    // Cleanup function for audio element
+    
+    // Set up audio element once
     useEffect(() => {
-        return () => {
-            if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current.src = "";
+        const audio = new Audio();
+        audio.volume = 1.0;
+        
+        audio.addEventListener('play', () => setIsPlaying(true));
+        audio.addEventListener('pause', () => setIsPlaying(false));
+        audio.addEventListener('ended', () => {
+            setIsPlaying(false);
+            setProgress(0);
+        });
+        audio.addEventListener('timeupdate', () => {
+            if (audio.duration) {
+                const percentage = (audio.currentTime / audio.duration) * 100;
+                setProgress(percentage);
             }
+        });
+        
+        audioRef.current = audio;
+        
+        return () => {
+            audio.pause();
+            audio.src = '';
         };
     }, []);
-
+    
     const playTextAudio = async () => {
         if (!text || isLoading) return;
         
-        setIsLoading(true);
-        setError(null);
-        setProgress(0);
-        
         try {
+            setIsLoading(true);
+            setError(null);
+            
             const result = await convertTextToSpeech(text);
             
             if (!result.success || !result.audioUrl) {
                 throw new Error(result.error || 'Failed to get audio');
             }
             
-            // Create or reset audio element
-            if (!audioRef.current) {
-                audioRef.current = new Audio();
-            } else {
-                audioRef.current.pause();
-                audioRef.current.currentTime = 0;
+            if (audioRef.current) {
+                const audio = audioRef.current;
+                
+                // Set up a one-time event for when audio is ready
+                const canPlayHandler = () => {
+                    console.log("Audio can play now");
+                    audio.play()
+                        .then(() => {
+                            console.log("Audio started playing");
+                            setIsLoading(false);
+                        })
+                        .catch((e) => {
+                            console.error("Play error:", e);
+                            setError("Failed to play audio. Click play again.");
+                            setIsLoading(false);
+                        });
+                };
+                
+                // Set up the event listener for one time use
+                audio.addEventListener('canplaythrough', canPlayHandler, { once: true });
+                
+                // Also add an error handler
+                const errorHandler = () => {
+                    console.error("Audio load error");
+                    setError("Failed to load audio");
+                    setIsLoading(false);
+                };
+                audio.addEventListener('error', errorHandler, { once: true });
+                
+                // Set the source and start loading
+                audio.src = result.audioUrl;
+                audio.load();
+                
+                // Clean up if component unmounts during loading
+                return () => {
+                    audio.removeEventListener('canplaythrough', canPlayHandler);
+                    audio.removeEventListener('error', errorHandler);
+                };
             }
-            
-            // Set up event listeners for better UX
-            audioRef.current.oncanplay = () => {
-                console.log("Audio can play now");
-                setIsLoading(false);
-                audioRef.current?.play().catch(e => {
-                    console.error("Play error:", e);
-                    setError("Failed to play audio");
-                    setIsPlaying(false);
-                });
-            };
-            
-            audioRef.current.onplay = () => {
-                console.log("Audio started playing");
-                setIsPlaying(true);
-            };
-            
-            audioRef.current.onended = () => {
-                console.log("Audio playback ended");
-                setIsPlaying(false);
-                setProgress(0);
-            };
-            
-            audioRef.current.onerror = (e) => {
-                console.error("Audio error:", e);
-                setIsPlaying(false);
-                setError("Audio playback error");
-            };
-            
-            // Track progress
-            audioRef.current.ontimeupdate = () => {
-                if (audioRef.current) {
-                    const percentage = (audioRef.current.currentTime / audioRef.current.duration) * 100;
-                    setProgress(percentage);
-                }
-            };
-            
-            // Load the audio URL
-            console.log("Setting audio source...");
-            audioRef.current.src = result.audioUrl;
-            audioRef.current.load();
-            
         } catch (error) {
-            console.error("Error playing audio:", error);
+            console.error("Error:", error);
             setError(error instanceof Error ? error.message : 'Unknown error');
             setIsLoading(false);
         }
@@ -108,10 +113,9 @@ export default function AudioPlayer({ text, convertTextToSpeech }: AudioPlayerCo
     
     const stopAudio = () => {
         if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-            setIsPlaying(false);
-            setProgress(0);
+            const audio = audioRef.current;
+            audio.pause();
+            audio.currentTime = 0;
         }
     };
 
@@ -143,10 +147,9 @@ export default function AudioPlayer({ text, convertTextToSpeech }: AudioPlayerCo
                 ) : (
                     <Button 
                         onClick={playTextAudio}
-                        variant="default"
                         disabled={isLoading || !text}
                         size="sm"
-                        className="flex items-center"
+                        className="flex items-center bg-[#C1FF7A] text-black hover:bg-[#a8e663]"
                     >
                         {isLoading ? (
                             <>
