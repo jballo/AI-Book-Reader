@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PlayAI Book Reader
 
-## Getting Started
+## Overview
+PlayAI Book Reader is a web application that allows users to upload and read PDF files while providing text-to-speech functionality using PlayAI’s API. The app enables smooth navigation between pages and audio playback of the displayed text.
 
-First, run the development server:
+## Features
+- **PDF Upload**: Users can upload a PDF file through the web interface.
+- **Page Display**: The uploaded PDF is parsed and displayed one page at a time.
+  - Users can navigate between pages using next/previous buttons or a page number input.
+- **Text-to-Speech (TTS)**: The content of the currently displayed page can be played as audio using the PlayAI Text-to-Speech API.
+  - Users can control playback with play/pause functionality.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Tech Stack
+- **Frontend**: Next.js, TailwindCSS
+- **Backend**: Express
+- **File Storage**: UploadThing
+- **APIs**: PlayAI Text-to-Speech API
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Setup Instructions
+1. **Clone the Repository**
+    ```sh
+    git clone git@github.com:jballo/PlayAI-Book-Reader.git
+    cd playai-book-reader
+    ```
+2. **Install Dependences**
+    ```sh
+    npm install  # Install frontend dependencies
+    cd server
+    npm install  # Install backend dependencies
+    ```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. **Run the Application**
+    - Start the Backend:
+        ```sh
+        cd server
+        npm start
+        ```
+    - Start the Frontend:
+        ```sh
+        npm run dev
+        ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+4. Access the Application Open http://localhost:3000 in your web browser.

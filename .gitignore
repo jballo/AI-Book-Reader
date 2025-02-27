@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Specifically ignore node_modules inside the server folder
+/server/node_modules/
