@@ -2,7 +2,7 @@
 
 import { SignedIn, SignedOut, SignInButton, SignOutButton, useUser } from "@clerk/nextjs";
 import { Button } from "../ui/button";
-import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/TextLayer.css'; // Import the TextLayer CSS
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css'; // Import AnnotationLayer CSS, if needed
