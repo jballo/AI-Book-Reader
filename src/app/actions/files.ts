@@ -52,3 +52,48 @@ export async function UploadPdf(formData: FormData) {
     }
     
 }
+
+export async function UploadPdfMetadata(
+    userId: string, 
+    pdf_key: string,
+    pdf_url: string,
+    pdf_text: string[]
+) {
+    console.log("userId: ", userId);
+    console.log("pdf_key: ", pdf_key);
+    console.log("pdf_url: ", pdf_url);
+    console.log("pdf_text: ", pdf_text);
+    try {
+        const url_endpoint = new URL(process.env.UPLOAD_PDF_METADATA_ENDPOINT || "http://127.0.0.1:5001/upload-pdf-metadata");
+
+        const response = await fetch(url_endpoint.toString(), {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-API-KEY": process.env.API_KEY || "",
+            }, 
+            body: JSON.stringify({ userId, pdf_key, pdf_url, pdf_text })
+        })
+
+        if(!response.ok) {
+            throw new Error(`Failed to upload pdf metadata`);
+        }
+
+        const result = await response.json();
+
+        console.log("Result: ", result);
+
+        return {
+            success: true,
+            response: result.content
+        }
+
+    } catch (error) {
+        console.error("Error: ", error);
+        return {
+            success: false,
+            error:
+                error instanceof Error ? error.message : "Failed to upload pdf to uploathing.",
+        }
+    }
+}

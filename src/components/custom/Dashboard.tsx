@@ -30,26 +30,35 @@ interface PDF {
 }
 
 interface PdfProps {
-
     uploadPdf: (
         pdf: FormData
-    ) => Promise<{success: boolean; response?: PDF; error?: string; }>;
+    ) => Promise<{ success: boolean; response?: PDF; error?: string; }>;
+    uploadPdfMetadata: (
+        userId: string,
+        pdf_key: string,
+        pdf_url: string,
+        pdf_text: string[]
+    ) => Promise<{ success: boolean; response?: boolean; error?: string; }>;
 }
 
 interface DashboardProps {
     createUser: UserProps["createUser"];
     userExists: UserProps["userExists"];
     uploadPdf: PdfProps["uploadPdf"];
+    uploadPdfMetadata: PdfProps["uploadPdfMetadata"];
 }
 
-export default function Dashboard({ createUser, userExists, uploadPdf }: DashboardProps){
+export default function Dashboard({ createUser, userExists, uploadPdf, uploadPdfMetadata }: DashboardProps){
     const { user, isSignedIn } = useUser();
     const [numPages, setNumPages] = useState<number>();
     const [pageNumber, setPageNumber] = useState<number>();
     // const [data, setData] = useState<File | null>(null);
     const [pdfFile, setPdfFile] = useState<string | null>(null);
 
-
+     // state for text extraction
+    const [pagesText, setPagesText] = useState<string[]>([]);
+    const [isExtracting, setIsExtracting] = useState<boolean>(false);
+    const [extractionError, setExtractionError] = useState<string | null>(null);
 
 
 
@@ -80,6 +89,44 @@ export default function Dashboard({ createUser, userExists, uploadPdf }: Dashboa
         userSaved();
     }, [user, isSignedIn]);
 
+    const extractAllPagesText = async (pdfUrl: string) => {
+        if (!pdfUrl) return;
+        
+        try {
+            setIsExtracting(true);
+            setExtractionError(null);
+            
+            // Load the PDF document
+            const loadingTask = pdfjs.getDocument(pdfUrl);
+            const pdf = await loadingTask.promise;
+            
+            const extractedText: string[] = [];
+            
+            // Process each page
+            for (let i = 1; i <= pdf.numPages; i++) {
+                // Get the page
+                const page = await pdf.getPage(i);
+                
+                // Extract text content
+                const textContent = await page.getTextContent();
+                
+                // Concatenate the text items
+                const pageText = textContent.items.map((item: any) => item.str).join(' ');
+                extractedText.push(pageText);
+            }
+            
+            setPagesText(extractedText);
+            console.log(`Extracted text from ${extractedText.length} pages`);
+            return extractedText;
+        } catch (error) {
+            console.error("Error extracting PDF text:", error);
+            setExtractionError("Failed to extract text from PDF");
+        } finally {
+            setIsExtracting(false);
+        }
+    };
+
+
     const handleFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) {
@@ -94,11 +141,29 @@ export default function Dashboard({ createUser, userExists, uploadPdf }: Dashboa
 
         const uploadpdf_response = await uploadPdf(actionFormData);
 
-        if(uploadpdf_response.success){
-            // uploadpdf_response.response will return object
-            setPdfFile(uploadpdf_response.response?.url || "")
+        if (!uploadpdf_response.success){
+            console.error("PDF upload failed");
+            return;
         }
-    }, []);
+        
+        const pdfUrl = uploadpdf_response.response?.url || "";
+        const pdfKey = uploadpdf_response.response?.key || "";
+        setPdfFile(pdfUrl)
+
+        if (!(pdfUrl && pdfKey)){
+            console.error("No pdf url and/or returned from upload");
+            return;
+        }
+        const pdfText = await extractAllPagesText(pdfUrl);
+        console.log("pdfText: ", pdfText);
+
+        if(!(user && isSignedIn)){
+            console.error("User not signed in and/or authenticated...");
+            return;
+        }
+        await uploadPdfMetadata(user.id, pdfKey, pdfUrl, pdfText || []);
+
+    }, [user, isSignedIn, uploadPdf, uploadPdfMetadata, extractAllPagesText]);
 
     function onDocumentLoadSuccess({ numPages }: { numPages: number }): void {
         setNumPages(numPages);
@@ -159,6 +224,17 @@ export default function Dashboard({ createUser, userExists, uploadPdf }: Dashboa
                 >
                     Next
                 </Button>
+                {pagesText.length > 0 && pageNumber && (
+                    <div className="mt-4 w-full max-w-md p-4 border rounded">
+                        <h3 className="font-medium mb-2">Current Page Text:</h3>
+                        <div className="max-h-40 overflow-y-auto bg-gray-50 p-3 text-sm">
+                            {pagesText[pageNumber-1] || "No text found on this page"}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">
+                            Total pages extracted: {pagesText.length}
+                        </p>
+                    </div>
+                )}
             </div>
         </div>    
   </div>);
