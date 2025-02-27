@@ -57,8 +57,6 @@ export default function Dashboard({ createUser, userExists, uploadPdf, uploadPdf
 
      // state for text extraction
     const [pagesText, setPagesText] = useState<string[]>([]);
-    const [isExtracting, setIsExtracting] = useState<boolean>(false);
-    const [extractionError, setExtractionError] = useState<string | null>(null);
 
 
 
