@@ -3,9 +3,19 @@ const { Pool } = require("pg");
 require("dotenv").config();
 const app = express();
 const cors = require("cors");
+const multer = require("multer");
+const { UTApi } = require("uploadthing/server");
 const port = 5001;
 
 app.use(cors());
+app.use(express.json());
+
+const utapi = new UTApi({
+  token: process.env.UPLOADTHING_TOKEN,
+});
+
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
 const { PGHOST, PGDATABASE, PGUSER, PGPASSWORD } = process.env;
 
@@ -105,6 +115,85 @@ app.post("/user-exists", async (req, res) => {
     });
   } finally {
     client.release();
+  }
+});
+
+app.post("/upload-pdf", upload.single("pdf"), async (req, res) => {
+  console.log("\n\n------------ upload-pdf ------------\n\n");
+
+  const apiKey = req.headers["x-api-key"];
+  if (apiKey !== process.env.API_KEY) {
+    res.status(401).json({
+      error: "Unauthorized",
+    });
+    return;
+  } else {
+    console.log("Authorized");
+  }
+
+  try {
+    const fileData = new File([req.file.buffer], req.file.originalname, {
+      type: req.file.mimetype,
+    });
+
+    const response = await utapi.uploadFiles([fileData]);
+
+    response_body = {
+      url: response[0].data.ufsUrl,
+      key: response[0].data.key,
+    };
+
+    console.log("response_body: ", response_body);
+
+    res.status(200).json({
+      content: response_body,
+    });
+  } catch (error) {
+    console.log("Error: ", error);
+    res.status(500).json({
+      error: `Failed to upload pdf to uploadthing.`,
+    });
+  }
+});
+
+app.post("/upload-pdf-metadata", async (req, res) => {
+  console.log("\n\n------------ upload-pdf-metadata ------------\n\n");
+
+  const apiKey = req.headers["x-api-key"];
+  if (apiKey !== process.env.API_KEY) {
+    res.status(401).json({
+      error: "Unauthorized",
+    });
+    return;
+  } else {
+    console.log("Authorized");
+  }
+  const client = await pool.connect();
+  try {
+    const { userId, pdf_key, pdf_url, pdf_text } = req.body;
+    console.log("userId: ", userId);
+    console.log("req body: ", req.body);
+
+    const createTableQuery = `
+    CREATE TABLE IF NOT EXISTS pdfs (id TEXT PRIMARY KEY, url TEXT NOT NULL, uploader TEXT NOT NULL, text TEXT[] NOT NULL);
+    `;
+
+    const createTableResult = await client.query(createTableQuery);
+
+    const insertUserQuery = `INSERT INTO pdfs (id, url, uploader, text) VALUES ($1, $2, $3, $4);`;
+    const values = [pdf_key, pdf_url, userId, pdf_text];
+
+    const insertUserResult = await client.query(insertUserQuery, values);
+    console.log(`Succesfully uploaded pdf metadata to db.`);
+
+    res.status(200).json({
+      content: true,
+    });
+  } catch (error) {
+    console.log("Error: ", error);
+    res.status(500).json({
+      error: `Failed to upload pdf metadata to db.`,
+    });
   }
 });
 

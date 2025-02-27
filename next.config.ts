@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
         canvas: './empty-module.ts',
       },
     },
+    serverActions: {
+      bodySizeLimit: "5000mb"
+    }
   },
 };
 
