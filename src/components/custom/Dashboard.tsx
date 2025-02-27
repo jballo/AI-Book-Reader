@@ -7,8 +7,8 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/TextLayer.css'; // Import the TextLayer CSS
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css'; // Import AnnotationLayer CSS, if needed
 import AudioPlayer from "./Audioplayer";
-import { motion, AnimatePresence } from "framer-motion";
-import { Bookmark, ChevronLeft, ChevronRight, Clock, Download, Play, Shuffle } from "lucide-react";
+import { motion } from "framer-motion";
+import { ChevronLeft, ChevronRight, Clock, Download, Play, Shuffle } from "lucide-react";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
