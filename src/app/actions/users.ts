@@ -32,7 +32,7 @@ export async function createUser(id: string, email: string){
         console.log("Result: ", result);
 
         return {
-            sucess: true,
+            success: true,
             response: result.content,
         };
     } catch (error) {
