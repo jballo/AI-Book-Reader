@@ -34,12 +34,14 @@ const { PGHOST, PGDATABASE, PGUSER, PGPASSWORD } = process.env;
 const pool = new Pool({
   host: PGHOST,
   database: PGDATABASE,
-  username: PGUSER,
+  user: PGUSER,
   password: PGPASSWORD,
   port: 5432,
-  ssl: {
-    require: true,
-  },
+  ssl: true,
+});
+
+pool.on("error", (err) => {
+  console.error("Unexpected error on idle client: ", err);
 });
 
 app.get("/", (req, res) => {
@@ -122,6 +124,7 @@ app.post("/user-exists", async (req, res) => {
       content: userInDb,
     });
   } catch (error) {
+    console.error("Error looking up user:", error);
     res.status(500).json({
       error: `Failed to look up user in db.`,
     });
