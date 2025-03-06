@@ -204,6 +204,8 @@ app.post("/upload-pdf-metadata", async (req, res) => {
     res.status(500).json({
       error: `Failed to upload pdf metadata to db.`,
     });
+  } finally {
+    client.release();
   }
 });
 
