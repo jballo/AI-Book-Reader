@@ -1,20 +1,15 @@
 import express from "express";
 import pkg from "pg";
 const { Pool } = pkg;
-// require("dotenv").config();
 import dotenv from "dotenv";
 const app = express();
-// const cors = require("cors");
 import cors from "cors";
-// const multer = require("multer");
 import multer from "multer";
-// const { UTApi } = require("uploadthing/server");
 import * as uploadthingServer from "uploadthing/server";
 const { UTApi } = uploadthingServer;
 import nodeFetch from "node-fetch";
 const fetch = nodeFetch;
 
-// const fetch = require("node-fetch");
 const port = process.env.PORT || 5001;
 
 dotenv.config();
@@ -68,12 +63,12 @@ app.post("/users", async (req, res) => {
     const createTableQuery = `
     CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT NOT NULL);
     `;
-    const createTableResult = await client.query(createTableQuery);
+    await client.query(createTableQuery);
 
     const insertUserQuery = `INSERT INTO users (id, email) VALUES ($1, $2);`;
     const values = [userId, email];
 
-    const insertUserResult = await client.query(insertUserQuery, values);
+    await client.query(insertUserQuery, values);
     console.log(`Succesfully added ${email} to db.`);
     res.status(200).json({
       content: `Succesfully added ${email} to db.`,
@@ -193,12 +188,12 @@ app.post("/upload-pdf-metadata", async (req, res) => {
     CREATE TABLE IF NOT EXISTS pdfs (id TEXT PRIMARY KEY, url TEXT NOT NULL, uploader TEXT NOT NULL, text TEXT[] NOT NULL);
     `;
 
-    const createTableResult = await client.query(createTableQuery);
+    await client.query(createTableQuery);
 
     const insertUserQuery = `INSERT INTO pdfs (id, url, uploader, text) VALUES ($1, $2, $3, $4);`;
     const values = [pdf_key, pdf_url, userId, pdf_text];
 
-    const insertUserResult = await client.query(insertUserQuery, values);
+    await client.query(insertUserQuery, values);
     console.log(`Succesfully uploaded pdf metadata to db.`);
 
     res.status(200).json({
