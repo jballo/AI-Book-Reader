@@ -1,26 +1,21 @@
 import express from "express";
 import pkg from "pg";
 const { Pool } = pkg;
-// require("dotenv").config();
 import dotenv from "dotenv";
 const app = express();
-// const cors = require("cors");
 import cors from "cors";
-// const multer = require("multer");
 import multer from "multer";
-// const { UTApi } = require("uploadthing/server");
 import * as uploadthingServer from "uploadthing/server";
 const { UTApi } = uploadthingServer;
 import nodeFetch from "node-fetch";
 const fetch = nodeFetch;
+import { Webhook } from "svix";
 
-// const fetch = require("node-fetch");
-const port = 5001;
+const port = process.env.PORT || 5001;
 
 dotenv.config();
 
 app.use(cors());
-app.use(express.json());
 
 const utapi = new UTApi({
   token: process.env.UPLOADTHING_TOKEN,
@@ -34,19 +29,21 @@ const { PGHOST, PGDATABASE, PGUSER, PGPASSWORD } = process.env;
 const pool = new Pool({
   host: PGHOST,
   database: PGDATABASE,
-  username: PGUSER,
+  user: PGUSER,
   password: PGPASSWORD,
   port: 5432,
-  ssl: {
-    require: true,
-  },
+  ssl: true,
+});
+
+pool.on("error", (err) => {
+  console.error("Unexpected error on idle client: ", err);
 });
 
 app.get("/", (req, res) => {
   res.send("Hello PlayAI!");
 });
 
-app.post("/users", async (req, res) => {
+app.post("/users", express.json(), async (req, res) => {
   console.log("\n\n------------ users ------------\n\n");
   const apiKey = req.headers["x-api-key"];
   if (apiKey !== process.env.API_KEY) {
@@ -66,12 +63,12 @@ app.post("/users", async (req, res) => {
     const createTableQuery = `
     CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT NOT NULL);
     `;
-    const createTableResult = await client.query(createTableQuery);
+    await client.query(createTableQuery);
 
     const insertUserQuery = `INSERT INTO users (id, email) VALUES ($1, $2);`;
     const values = [userId, email];
 
-    const insertUserResult = await client.query(insertUserQuery, values);
+    await client.query(insertUserQuery, values);
     console.log(`Succesfully added ${email} to db.`);
     res.status(200).json({
       content: `Succesfully added ${email} to db.`,
@@ -86,7 +83,7 @@ app.post("/users", async (req, res) => {
   }
 });
 
-app.post("/user-exists", async (req, res) => {
+app.post("/user-exists", express.json(), async (req, res) => {
   console.log("\n\n------------ user-exists ------------\n\n");
   const apiKey = req.headers["x-api-key"];
   if (apiKey !== process.env.API_KEY) {
@@ -122,6 +119,7 @@ app.post("/user-exists", async (req, res) => {
       content: userInDb,
     });
   } catch (error) {
+    console.error("Error looking up user:", error);
     res.status(500).json({
       error: `Failed to look up user in db.`,
     });
@@ -168,7 +166,7 @@ app.post("/upload-pdf", upload.single("pdf"), async (req, res) => {
   }
 });
 
-app.post("/upload-pdf-metadata", async (req, res) => {
+app.post("/upload-pdf-metadata", express.json(), async (req, res) => {
   console.log("\n\n------------ upload-pdf-metadata ------------\n\n");
 
   const apiKey = req.headers["x-api-key"];
@@ -182,20 +180,20 @@ app.post("/upload-pdf-metadata", async (req, res) => {
   }
   const client = await pool.connect();
   try {
-    const { userId, pdf_key, pdf_url, pdf_text } = req.body;
+    const { userId, pdf_key, pdf_name, pdf_url, pdf_text } = req.body;
     console.log("userId: ", userId);
     console.log("req body: ", req.body);
 
     const createTableQuery = `
-    CREATE TABLE IF NOT EXISTS pdfs (id TEXT PRIMARY KEY, url TEXT NOT NULL, uploader TEXT NOT NULL, text TEXT[] NOT NULL);
+    CREATE TABLE IF NOT EXISTS pdfs (id TEXT PRIMARY KEY, name TEXT NOT NULL, url TEXT NOT NULL, uploader TEXT NOT NULL, text TEXT[] NOT NULL);
     `;
 
-    const createTableResult = await client.query(createTableQuery);
+    await client.query(createTableQuery);
 
-    const insertUserQuery = `INSERT INTO pdfs (id, url, uploader, text) VALUES ($1, $2, $3, $4);`;
-    const values = [pdf_key, pdf_url, userId, pdf_text];
+    const insertUserQuery = `INSERT INTO pdfs (id, name, url, uploader, text) VALUES ($1, $2, $3, $4, $5);`;
+    const values = [pdf_key, pdf_name, pdf_url, userId, pdf_text];
 
-    const insertUserResult = await client.query(insertUserQuery, values);
+    await client.query(insertUserQuery, values);
     console.log(`Succesfully uploaded pdf metadata to db.`);
 
     res.status(200).json({
@@ -206,10 +204,12 @@ app.post("/upload-pdf-metadata", async (req, res) => {
     res.status(500).json({
       error: `Failed to upload pdf metadata to db.`,
     });
+  } finally {
+    client.release();
   }
 });
 
-app.post("/text-to-speech", async (req, res) => {
+app.post("/text-to-speech", express.json(), async (req, res) => {
   const apiKey = req.headers["x-api-key"];
   if (apiKey !== process.env.API_KEY) {
     res.status(401).json({
@@ -299,6 +299,120 @@ app.post("/text-to-speech", async (req, res) => {
     }
   }
 });
+
+app.post("/list-pdfs", express.json(), async (req, res) => {
+  const apiKey = req.headers["x-api-key"];
+  if (apiKey !== process.env.API_KEY) {
+    res.status(401).json({
+      error: "Unauthorized",
+    });
+    return;
+  } else {
+    console.log("Authorized");
+  }
+  const client = await pool.connect();
+
+  try {
+    const { userId } = req.body;
+    console.log("userId: ", userId);
+
+    const pdfListQuery = `
+    SELECT id AS key, name, url, text 
+    FROM pdfs
+    WHERE uploader = $1;
+    `;
+    const values = [userId];
+
+    const { rows } = await client.query(pdfListQuery, values);
+    console.log("rows: ", rows);
+
+    res.status(200).json({
+      content: rows,
+    });
+  } catch (error) {
+    console.error("Error: ", error);
+    res.status(500).json({
+      error: `Failed to retrieve list of pdfs`,
+    });
+  } finally {
+    client.release();
+  }
+});
+
+app.post(
+  "/webhooks/clerk",
+  express.raw({ type: "application/json" }),
+  async (req, res) => {
+    let client;
+    try {
+      const webhookSecret = process.env.CLERK_WEBHOOK_SECRET || "";
+
+      if (!webhookSecret) {
+        console.log("CLERK_WEBHOOK_SECRET is not set");
+        return res
+          .status(500)
+          .json({ error: "CLERK_WEBHOOK_SECRET is not set" });
+      }
+
+      const svixId = req.headers["svix-id"];
+      const svixTimestamp = req.headers["svix-timestamp"];
+      const svixSignature = req.headers["svix-signature"];
+
+      if (!svixId || !svixTimestamp || !svixSignature) {
+        console.log("Missing Svix headers");
+        return res.status(400).send("Missing Svix headers");
+      }
+
+      const body = req.body.toString();
+      const wh = new Webhook(webhookSecret);
+      const evt = wh.verify(body, {
+        "svix-id": svixId,
+        "svix-timestamp": svixTimestamp,
+        "svix-signature": svixSignature,
+      });
+
+      const { data, type } = evt;
+
+      switch (type) {
+        case "user.created":
+          console.log("User created event!");
+          const email = data.email_addresses[0].email_address;
+          const userId = data.id;
+          console.log("email_address: ", email);
+          console.log("id: ", userId);
+
+          client = await pool.connect();
+
+          const createTableQuery = `
+          CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT NOT NULL);
+          `;
+          await client.query(createTableQuery);
+
+          const insertUserQuery = `INSERT INTO users (id, email) VALUES ($1, $2);`;
+          const values = [userId, email];
+          await client.query(insertUserQuery, values);
+          console.log(`Succesfully added ${email} to db.`);
+          res.status(200).json({
+            content: `Succesfully added ${email} to db.`,
+          });
+          break;
+
+        default:
+          console.log("Unhanled event type: ", type);
+          res.status(200).json({ success: true });
+          break;
+      }
+    } catch (error) {
+      console.error("Webhook error: ", error);
+      res.status(200).json({ error: `Webhook Error: ${error.message}` });
+    } finally {
+      if (client) {
+        client.release();
+        console.log("Client released.");
+      }
+    }
+  }
+);
 
 app.listen(port, () => {
   console.log(`Listening on port ${port}`);
