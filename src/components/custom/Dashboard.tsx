@@ -2,7 +2,7 @@
 
 import { SignedIn, SignedOut, SignInButton, SignOutButton, useUser } from "@clerk/nextjs";
 import { Button } from "../ui/button";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/TextLayer.css'; // Import the TextLayer CSS
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css'; // Import AnnotationLayer CSS, if needed
@@ -15,17 +15,6 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
-
-
-interface UserProps {
-    createUser: (
-        userId: string,
-        userEmail: string,
-    ) => Promise<{success: boolean; response?: string; error?: string;}>;
-    userExists: (
-        userId: string,
-    ) => Promise<{ success: boolean; response?: boolean; error?: string; }>;
-}
 
 interface PDF {
     url: string,
@@ -56,8 +45,6 @@ interface AudioProps {
 
 
 interface DashboardProps {
-    createUser: UserProps["createUser"];
-    userExists: UserProps["userExists"];
     uploadPdf: PdfProps["uploadPdf"];
     uploadPdfMetadata: PdfProps["uploadPdfMetadata"];
     convertTextToSpeech: AudioProps["convertTextToSpeech"];
@@ -73,7 +60,7 @@ const recentPdfs = [
 
 
 
-export default function Dashboard({ createUser, userExists, uploadPdf, uploadPdfMetadata, convertTextToSpeech }: DashboardProps){
+export default function Dashboard({ uploadPdf, uploadPdfMetadata, convertTextToSpeech }: DashboardProps){
     const { user, isSignedIn } = useUser();
     const [numPages, setNumPages] = useState<number>();
     const [pageNumber, setPageNumber] = useState<number>();
@@ -87,34 +74,6 @@ export default function Dashboard({ createUser, userExists, uploadPdf, uploadPdf
     const [isDragging, setIsDragging] = useState<boolean>(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     // const [pageRendering, setPageRendering] = useState(false);
-
-
-    useEffect(() => {
-
-        const userSaved = async () => {
-            if (user && isSignedIn) {
-                
-                const userExistResponse = await userExists(user.id);
-
-                if (userExistResponse.success) {
-
-                    if (!userExistResponse.response) {
-                        const response = await createUser(user.id, user.primaryEmailAddress?.emailAddress || "");
-                        if(!response.success){
-                            console.log(response.error);
-                        }
-                    }
-
-                } else {
-                    console.log(userExistResponse.error);
-                }
-
-
-            }
-        };
-        
-        userSaved();
-    }, [user, isSignedIn]);
 
     const extractAllPagesText = async (pdfUrl: string) => {
         if (!pdfUrl) return;
