@@ -74,18 +74,9 @@ interface DashboardProps {
     convertTextToSpeech: AudioProps["convertTextToSpeech"];
 }
 
-// Mock recent PDFs
-// const recentPdfs = [
-//   { name: "Project Documentation.pdf", lastOpened: "2 hours ago" },
-//   { name: "Research Paper.pdf", lastOpened: "Yesterday" },
-//   { name: "Meeting Notes.pdf", lastOpened: "3 days ago" },
-//   { name: "Book Chapter 1.pdf", lastOpened: "1 week ago" },
-// ]
-
-
 
 export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, convertTextToSpeech }: DashboardProps){
-    const { user, isSignedIn } = useUser();
+    const { user, isSignedIn, isLoaded } = useUser();
     const [numPages, setNumPages] = useState<number>();
     const [pageNumber, setPageNumber] = useState<number>();
     // const [data, setData] = useState<File | null>(null);
@@ -102,24 +93,45 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
     const [userPdfs, setUserPdfs] = useState<ListedPDF[]>([]);
 
     const [popUpActive, setPopUpActive] = useState<boolean>(false);
+    const [isLoadingPdfs, setIsLoadingPdfs] = useState<boolean>(false);
+
+    const loadPdfs = async (userId: string | undefined) => {
+        if(!userId) return;
+
+        setIsLoadingPdfs(true);
+
+        try {
+            const response = await listPdfs(userId);
+            if(response.success && response.response && response.response.length > 0){
+                    setUserPdfs(response.response);
+            } else {
+                setUserPdfs([]);
+            }
+        } catch (error) {
+            console.error("Error loading PDFs: ", error);
+        } finally {
+            setIsLoadingPdfs(false);
+        }
+    }
+
+    useEffect(() => {
+        // Clear PDFs immediately on sign-out
+        if (!isSignedIn && isLoaded) {
+            setUserPdfs([]);
+            return;
+        }
+        // Load PDFs when user signs in and isLoaded
+
+        if (user && isSignedIn && isLoaded) {
+            loadPdfs(user.id);
+        }
+
+    },[user, isSignedIn, isLoaded]);
 
 
     useEffect(() => {
-        if(user && isSignedIn){
-            setPopUpActive(false);
-
-            const loadPdfs = async () => {
-                const response = await listPdfs(user.id);
-                if(response.success && response.response && response.response.length > 0){
-                    setUserPdfs(response.response);
-                }
-            }
-
-            loadPdfs();
-        } else {
-            setUserPdfs([]);
-        }
-    },[user, isSignedIn, listPdfs]);
+        console.log("len of userPdfs: ", userPdfs.length);
+    }, [userPdfs]);
 
     const extractAllPagesText = async (pdfUrl: string) => {
         if (!pdfUrl) return;
@@ -383,37 +395,45 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
                         </Button>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {userPdfs.map((pdf, index) => (
-                            <motion.div
-                                key={pdf.key}
-                                className="bg-zinc-900 rounded-xl p-4 hover:bg-zinc-800 transition-colors cursor-pointer group"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.1 }}
-                            >
-                                <div className="flex items-start justify-between">
-                                    <div className="flex items-center space-x-3">
-                                        <div className="p-2 bg-zinc-800 rounded-lg group-hover:bg-zinc-700 transition-colors">
-                                        <Download className="h-5 w-5 text-[#C1FF7A]" />
+                        {isLoadingPdfs ? (
+                            <p className="text-zinc-400">Loading PDFs...</p>
+                        ): (!isSignedIn && isLoaded) ? (
+                            <p className="text-zinc-400">Sign in to view your PDFs.</p>
+                        ) : userPdfs.length === 0 ? (
+                            <p className="text-zinc-400">No PDFs uploaded yet.</p>
+                        ): (
+                            userPdfs.map((pdf, index) => (
+                                <motion.div
+                                    key={pdf.key}
+                                    className="bg-zinc-900 rounded-xl p-4 hover:bg-zinc-800 transition-colors cursor-pointer group"
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: index * 0.1 }}
+                                >
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-center space-x-3">
+                                            <div className="p-2 bg-zinc-800 rounded-lg group-hover:bg-zinc-700 transition-colors">
+                                            <Download className="h-5 w-5 text-[#C1FF7A]" />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-medium text-white">{pdf.name}</h3>
+                                                {/* <p className="text-sm text-zinc-400 flex items-center mt-1">
+                                                    <Clock className="h-3 w-3 mr-1" />
+                                                    {pdf.lastOpened}
+                                                </p> */}
+                                            </div>
                                         </div>
-                                        <div>
-                                            <h3 className="font-medium text-white">{pdf.name}</h3>
-                                            {/* <p className="text-sm text-zinc-400 flex items-center mt-1">
-                                                <Clock className="h-3 w-3 mr-1" />
-                                                {pdf.lastOpened}
-                                            </p> */}
-                                        </div>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <Play className="h-4 w-4" />
+                                        </Button>
                                     </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                        <Play className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </motion.div>
-                        ))}
+                                </motion.div>
+                            ))
+                        )}
                     </div>
                     </div>
                 </div>
