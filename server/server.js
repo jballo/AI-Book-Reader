@@ -180,18 +180,18 @@ app.post("/upload-pdf-metadata", express.json(), async (req, res) => {
   }
   const client = await pool.connect();
   try {
-    const { userId, pdf_key, pdf_url, pdf_text } = req.body;
+    const { userId, pdf_key, pdf_name, pdf_url, pdf_text } = req.body;
     console.log("userId: ", userId);
     console.log("req body: ", req.body);
 
     const createTableQuery = `
-    CREATE TABLE IF NOT EXISTS pdfs (id TEXT PRIMARY KEY, url TEXT NOT NULL, uploader TEXT NOT NULL, text TEXT[] NOT NULL);
+    CREATE TABLE IF NOT EXISTS pdfs (id TEXT PRIMARY KEY, name TEXT NOT NULL, url TEXT NOT NULL, uploader TEXT NOT NULL, text TEXT[] NOT NULL);
     `;
 
     await client.query(createTableQuery);
 
-    const insertUserQuery = `INSERT INTO pdfs (id, url, uploader, text) VALUES ($1, $2, $3, $4);`;
-    const values = [pdf_key, pdf_url, userId, pdf_text];
+    const insertUserQuery = `INSERT INTO pdfs (id, name, url, uploader, text) VALUES ($1, $2, $3, $4, $5);`;
+    const values = [pdf_key, pdf_name, pdf_url, userId, pdf_text];
 
     await client.query(insertUserQuery, values);
     console.log(`Succesfully uploaded pdf metadata to db.`);
@@ -297,6 +297,45 @@ app.post("/text-to-speech", express.json(), async (req, res) => {
     } else {
       res.end();
     }
+  }
+});
+
+app.post("/list-pdfs", express.json(), async (req, res) => {
+  const apiKey = req.headers["x-api-key"];
+  if (apiKey !== process.env.API_KEY) {
+    res.status(401).json({
+      error: "Unauthorized",
+    });
+    return;
+  } else {
+    console.log("Authorized");
+  }
+  const client = await pool.connect();
+
+  try {
+    const { userId } = req.body;
+    console.log("userId: ", userId);
+
+    const pdfListQuery = `
+    SELECT id AS key, name, url, text 
+    FROM pdfs
+    WHERE uploader = $1;
+    `;
+    const values = [userId];
+
+    const { rows } = await client.query(pdfListQuery, values);
+    console.log("rows: ", rows);
+
+    res.status(200).json({
+      content: rows,
+    });
+  } catch (error) {
+    console.error("Error: ", error);
+    res.status(500).json({
+      error: `Failed to retrieve list of pdfs`,
+    });
+  } finally {
+    client.release();
   }
 });
 

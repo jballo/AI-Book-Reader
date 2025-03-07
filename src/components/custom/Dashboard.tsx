@@ -2,13 +2,18 @@
 
 import { SignedIn, SignedOut, SignInButton, SignOutButton, useUser } from "@clerk/nextjs";
 import { Button } from "../ui/button";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/TextLayer.css'; // Import the TextLayer CSS
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css'; // Import AnnotationLayer CSS, if needed
 import AudioPlayer from "./Audioplayer";
 import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Clock, Download, Play, Shuffle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, OctagonX, Play, Shuffle } from "lucide-react";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "../ui/alert";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -16,21 +21,39 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 ).toString();
 
 
-interface PDF {
+interface BasePDF {
     url: string,
     key: string,
 }
 
+interface UploadedPDF extends BasePDF{
+    type: 'uploaded';
+}
+
+interface ListedPDF extends BasePDF {
+    type: 'listed';
+    name: string;
+    text: string[];
+}
+
+// type PDF = UploadedPDF | ListedPDF;
+
+
+
 interface PdfProps {
     uploadPdf: (
         pdf: FormData
-    ) => Promise<{ success: boolean; response?: PDF; error?: string; }>;
+    ) => Promise<{ success: boolean; response?: UploadedPDF; error?: string; }>;
     uploadPdfMetadata: (
         userId: string,
         pdf_key: string,
+        pdf_name: string,
         pdf_url: string,
         pdf_text: string[]
     ) => Promise<{ success: boolean; response?: boolean; error?: string; }>;
+    listPdfs: (
+        userId: string,
+    ) => Promise<{ success: boolean; response?: ListedPDF[]; error?: string; }>;
 }
 
 interface AudioProps {
@@ -47,20 +70,21 @@ interface AudioProps {
 interface DashboardProps {
     uploadPdf: PdfProps["uploadPdf"];
     uploadPdfMetadata: PdfProps["uploadPdfMetadata"];
+    listPdfs: PdfProps["listPdfs"];
     convertTextToSpeech: AudioProps["convertTextToSpeech"];
 }
 
 // Mock recent PDFs
-const recentPdfs = [
-  { name: "Project Documentation.pdf", lastOpened: "2 hours ago" },
-  { name: "Research Paper.pdf", lastOpened: "Yesterday" },
-  { name: "Meeting Notes.pdf", lastOpened: "3 days ago" },
-  { name: "Book Chapter 1.pdf", lastOpened: "1 week ago" },
-]
+// const recentPdfs = [
+//   { name: "Project Documentation.pdf", lastOpened: "2 hours ago" },
+//   { name: "Research Paper.pdf", lastOpened: "Yesterday" },
+//   { name: "Meeting Notes.pdf", lastOpened: "3 days ago" },
+//   { name: "Book Chapter 1.pdf", lastOpened: "1 week ago" },
+// ]
 
 
 
-export default function Dashboard({ uploadPdf, uploadPdfMetadata, convertTextToSpeech }: DashboardProps){
+export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, convertTextToSpeech }: DashboardProps){
     const { user, isSignedIn } = useUser();
     const [numPages, setNumPages] = useState<number>();
     const [pageNumber, setPageNumber] = useState<number>();
@@ -74,6 +98,28 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, convertTextToS
     const [isDragging, setIsDragging] = useState<boolean>(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     // const [pageRendering, setPageRendering] = useState(false);
+
+    const [userPdfs, setUserPdfs] = useState<ListedPDF[]>([]);
+
+    const [popUpActive, setPopUpActive] = useState<boolean>(false);
+
+
+    useEffect(() => {
+        if(user && isSignedIn){
+            setPopUpActive(false);
+
+            const loadPdfs = async () => {
+                const response = await listPdfs(user.id);
+                if(response.success && response.response && response.response.length > 0){
+                    setUserPdfs(response.response);
+                }
+            }
+
+            loadPdfs();
+        } else {
+            setUserPdfs([]);
+        }
+    },[user, isSignedIn, listPdfs]);
 
     const extractAllPagesText = async (pdfUrl: string) => {
         if (!pdfUrl) return;
@@ -150,12 +196,20 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, convertTextToS
         e.preventDefault()
         e.stopPropagation()
         setIsDragging(false)
+        if(!(user && isSignedIn)){
+            console.log("User not signed in and/or authenticated...");
+            setPopUpActive(true);
+            return;
+        }
 
         const file = e.dataTransfer.files[0]
         if (file && file.type === "application/pdf") {
             //   setPdfFile(file)
             // setPageNumber(1)
 
+            const pdfName = file.name;
+            console.log("pdfName: ", pdfName);
+
             const actionFormData = new FormData();
             actionFormData.append("pdf", file);
 
@@ -177,20 +231,35 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, convertTextToS
             const pdfText = await extractAllPagesText(pdfUrl);
             console.log("pdfText: ", pdfText);
 
-            if(!(user && isSignedIn)){
-                console.error("User not signed in and/or authenticated...");
-                return;
-            }
-            await uploadPdfMetadata(user.id, pdfKey, pdfUrl, pdfText || []);
+            // if(!(user && isSignedIn)){
+            //     console.error("User not signed in and/or authenticated...");
+            //     setPopUpActive(true);
+            //     return;
+            // }
+           await uploadPdfMetadata(
+                user.id,
+                pdfKey,
+                pdfName,
+                pdfUrl,
+                pdfText || [],
+            )
         }
     }
 
     const onFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        if(!(user && isSignedIn)){
+            console.log("User not signed in and/or authenticated...");
+            setPopUpActive(true);
+            return;
+        }
         const file = event.target.files?.[0]
         if (file && file.type === "application/pdf") {
             // setPdfFile(file)
             // setPageNumber(1)
 
+            const pdfName = file.name;
+            console.log("pdfName: ", pdfName);
+
             const actionFormData = new FormData();
             actionFormData.append("pdf", file);
 
@@ -212,11 +281,17 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, convertTextToS
             const pdfText = await extractAllPagesText(pdfUrl);
             console.log("pdfText: ", pdfText);
 
-            if(!(user && isSignedIn)){
-                console.error("User not signed in and/or authenticated...");
-                return;
-            }
-            await uploadPdfMetadata(user.id, pdfKey, pdfUrl, pdfText || []);
+            // if(!(user && isSignedIn)){
+            //     console.error("User not signed in and/or authenticated...");
+            //     return;
+            // }
+            await uploadPdfMetadata(
+                user.id,
+                pdfKey,
+                pdfName,
+                pdfUrl,
+                pdfText || [],
+            )
         }
     }
 
@@ -248,6 +323,17 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, convertTextToS
         
         <div className="flex flex-col max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <header className="flex justify-between items-center mb-12">
+                {popUpActive && (
+                    <Alert className="w-80 absolute top-24 left-1/2 transform -translate-x-1/2 z-50 bg-[#C1FF7A] border-black">
+                        <AlertTitle className="flex flex-row gap-2 text-xl"> <OctagonX /> Alert!</AlertTitle>
+                        <AlertDescription className="flex flex-row justify-between text-lg">
+                            Sign In To Use Features
+                            <SignInButton>
+                                <Button>Sign In</Button>
+                            </SignInButton>
+                        </AlertDescription>
+                    </Alert>
+                )}
                 <h1 className="text-5xl font-bold tracking-tight">PlayAI Book Reader</h1>
                 <div className="flex items-center space-x-2">
                     <SignedIn>
@@ -291,42 +377,42 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, convertTextToS
                     </motion.div>
                     <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-semibold">Recent PDFs</h2>
+                        <h2 className="text-xl font-semibold">PDF Selection</h2>
                         <Button variant="ghost" className="text-zinc-400 hover:text-white">
                         View all
                         </Button>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {recentPdfs.map((pdf, index) => (
-                        <motion.div
-                            key={pdf.name}
-                            className="bg-zinc-900 rounded-xl p-4 hover:bg-zinc-800 transition-colors cursor-pointer group"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                        >
-                            <div className="flex items-start justify-between">
-                            <div className="flex items-center space-x-3">
-                                <div className="p-2 bg-zinc-800 rounded-lg group-hover:bg-zinc-700 transition-colors">
-                                <Download className="h-5 w-5 text-[#C1FF7A]" />
-                                </div>
-                                <div>
-                                <h3 className="font-medium text-white">{pdf.name}</h3>
-                                <p className="text-sm text-zinc-400 flex items-center mt-1">
-                                    <Clock className="h-3 w-3 mr-1" />
-                                    {pdf.lastOpened}
-                                </p>
-                                </div>
-                            </div>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        {userPdfs.map((pdf, index) => (
+                            <motion.div
+                                key={pdf.key}
+                                className="bg-zinc-900 rounded-xl p-4 hover:bg-zinc-800 transition-colors cursor-pointer group"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.1 }}
                             >
-                                <Play className="h-4 w-4" />
-                            </Button>
-                            </div>
-                        </motion.div>
+                                <div className="flex items-start justify-between">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="p-2 bg-zinc-800 rounded-lg group-hover:bg-zinc-700 transition-colors">
+                                        <Download className="h-5 w-5 text-[#C1FF7A]" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-medium text-white">{pdf.name}</h3>
+                                            {/* <p className="text-sm text-zinc-400 flex items-center mt-1">
+                                                <Clock className="h-3 w-3 mr-1" />
+                                                {pdf.lastOpened}
+                                            </p> */}
+                                        </div>
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                        <Play className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </motion.div>
                         ))}
                     </div>
                     </div>
@@ -357,7 +443,7 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, convertTextToS
                         </div>
 
                         
-                        <div className="pdf-container h-[calc(100vh-420px)] min-h-[400px] overflow-y-auto">
+                        <div className="pdf-container h-[calc(100vh-420px)] min-h-[400px] overflow-y-auto flex justify-center">
                             <Document
                                 file={pdfFile}
                                 onLoadSuccess={onDocumentLoadSuccess}
