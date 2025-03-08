@@ -8,12 +8,23 @@ import 'react-pdf/dist/esm/Page/TextLayer.css'; // Import the TextLayer CSS
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css'; // Import AnnotationLayer CSS, if needed
 import AudioPlayer from "./Audioplayer";
 import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Download, OctagonX, Play, Shuffle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, OctagonX, Trash2, Shuffle } from "lucide-react";
 import {
   Alert,
   AlertDescription,
   AlertTitle,
 } from "../ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../ui/alert-dialog"
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -54,6 +65,9 @@ interface PdfProps {
     listPdfs: (
         userId: string,
     ) => Promise<{ success: boolean; response?: ListedPDF[]; error?: string; }>;
+    deletePdf: (
+        id: string,
+    ) => Promise<{ success: boolean; response?: string; error?: string }>;
 }
 
 interface AudioProps {
@@ -72,10 +86,11 @@ interface DashboardProps {
     uploadPdfMetadata: PdfProps["uploadPdfMetadata"];
     listPdfs: PdfProps["listPdfs"];
     convertTextToSpeech: AudioProps["convertTextToSpeech"];
+    deletePdf: PdfProps["deletePdf"];
 }
 
 
-export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, convertTextToSpeech }: DashboardProps){
+export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, convertTextToSpeech, deletePdf }: DashboardProps){
     const { user, isSignedIn, isLoaded } = useUser();
     const [numPages, setNumPages] = useState<number>();
     const [pageNumber, setPageNumber] = useState<number>();
@@ -97,6 +112,8 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
     const [isLoadingPdfs, setIsLoadingPdfs] = useState<boolean>(false);
 
     const [pdfView, setPdfView] = useState<boolean>(false);
+
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false);
 
     const loadPdfs = async (userId: string | undefined) => {
         if(!userId) return;
@@ -320,6 +337,28 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
         );
     }, [pageNumber]);
 
+
+    const deleteOnClick = async (id: string) => {
+        if (!id) return;
+        try {
+            const response = await deletePdf(id);
+            
+            if (!response.success) {
+                console.error("Error: ", response.error);
+                return;
+            }
+
+            const result = response.response;
+            console.log("Result: ", result);
+
+            const newListedPdfs = userPdfs.filter(pdf => pdf.key !== id);
+            setUserPdfs(newListedPdfs);
+
+        } catch (error) {
+            console.error("Error: ", error);
+        }
+    }
+
     return (<div className="min-h-screen bg-black text-white">
         {/* Top Banner */}
         <div className="bg-[#C1FF7A] text-black px-4 py-2 text-center text-sm font-medium">
@@ -412,12 +451,14 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: index * 0.1 }}
                                     onClick={() => {
-                                        setPdfFile(pdf.url);
-                                        setPagesText(pdf.text);
-                                        setNumPages(pdf.text.length);
-                                        setPdfName(pdf.name);
-                                        setPageNumber(1);
-                                        setPdfView(true);
+                                        if(!isDeleteDialogOpen){
+                                            setPdfFile(pdf.url);
+                                            setPagesText(pdf.text);
+                                            setNumPages(pdf.text.length);
+                                            setPdfName(pdf.name);
+                                            setPageNumber(1);
+                                            setPdfView(true);
+                                        }
                                     }}
                                 >
                                     <div className="flex items-start justify-between">
@@ -433,10 +474,53 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
                                                 </p> */}
                                             </div>
                                         </div>
-                                        <Button
+                                        <AlertDialog
+                                            onOpenChange={()=> {
+                                                console.log("Hello");
+                                            }}
+                                        >
+                                            <AlertDialogTrigger asChild>
+                                                {/* <Button variant="outline">Show Dialog</Button> */}
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 hover:text-white"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation(); // Prevent click from propogating to the parent div
+                                                        setIsDeleteDialogOpen(true);
+                                                        console.log("Trash button clicked.");
+                                                    }}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent className="bg-zinc-900 text-white border-zinc-700">
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Are sure you want to delete this pdf?</AlertDialogTitle>
+                                                    <AlertDialogDescription className="text-zinc-400">
+                                                        This action cannot be undone. This will permanently delete your
+                                                        pdf and corresponding your data from our servers.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel className="bg-zinc-800 hover:bg-zinc-700 text-white" onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setIsDeleteDialogOpen(false);
+                                                        console.log("Cancel deletion button clicked.");
+                                                    }}>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction className="bg-red-600 hover:bg-red-500 text-white" onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setIsDeleteDialogOpen(false);
+                                                        console.log("Final deletion button clicked.");
+                                                        deleteOnClick(pdf.key);
+                                                    }}>Delete</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                        {/* <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                            className="opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 hover:text-white"
                                             onClick={() => {
                                                 setPdfFile(pdf.url);
                                                 setPagesText(pdf.text);
@@ -446,8 +530,8 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
                                                 setPdfView(true);
                                             }}
                                         >
-                                            <Play className="h-4 w-4" />
-                                        </Button>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button> */}
                                     </div>
                                 </motion.div>
                             ))
