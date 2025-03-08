@@ -183,15 +183,16 @@ app.post("/upload-pdf-metadata", express.json(), async (req, res) => {
     const { userId, pdf_key, pdf_name, pdf_url, pdf_text } = req.body;
     console.log("userId: ", userId);
     console.log("req body: ", req.body);
+    // Sanitize the pdf_text array to remove null bytes from each string
+    const sanitizedText = pdf_text.map((text) => text.replace(/\0/g, ""));
 
     const createTableQuery = `
     CREATE TABLE IF NOT EXISTS pdfs (id TEXT PRIMARY KEY, name TEXT NOT NULL, url TEXT NOT NULL, uploader TEXT NOT NULL, text TEXT[] NOT NULL);
     `;
 
     await client.query(createTableQuery);
-
     const insertUserQuery = `INSERT INTO pdfs (id, name, url, uploader, text) VALUES ($1, $2, $3, $4, $5);`;
-    const values = [pdf_key, pdf_name, pdf_url, userId, pdf_text];
+    const values = [pdf_key, pdf_name, pdf_url, userId, sanitizedText];
 
     await client.query(insertUserQuery, values);
     console.log(`Succesfully uploaded pdf metadata to db.`);
@@ -333,6 +334,49 @@ app.post("/list-pdfs", express.json(), async (req, res) => {
     console.error("Error: ", error);
     res.status(500).json({
       error: `Failed to retrieve list of pdfs`,
+    });
+  } finally {
+    client.release();
+  }
+});
+
+app.post("/delete-pdf", express.json(), async (req, res) => {
+  const apiKey = req.headers["x-api-key"];
+  if (apiKey !== process.env.API_KEY) {
+    res.status(401).json({
+      error: "Unauthorized",
+    });
+    return;
+  } else {
+    console.log("Authorized");
+  }
+
+  const client = await pool.connect();
+
+  try {
+    const { id } = req.body;
+    console.log("id: ", id);
+
+    const deletePdfQuery = `
+    DELETE FROM pdfs
+    WHERE id = $1;
+    `;
+    const values = [id];
+
+    const dbResponse = await client.query(deletePdfQuery, values);
+    console.log("dbResponse: ", dbResponse);
+
+    const uploadthingResponse = await utapi.deleteFiles(id);
+
+    console.log("uploadthingResponse: ", uploadthingResponse);
+
+    res.status(200).json({
+      content: "Successfully deleted pdf.",
+    });
+  } catch (error) {
+    console.error("Error: ", error);
+    res.status(500).json({
+      error: `Failed to delete pdf`,
     });
   } finally {
     client.release();
