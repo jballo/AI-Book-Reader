@@ -79,6 +79,7 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
     const { user, isSignedIn, isLoaded } = useUser();
     const [numPages, setNumPages] = useState<number>();
     const [pageNumber, setPageNumber] = useState<number>();
+    const [pdfName, setPdfName] = useState<string>('');
     // const [data, setData] = useState<File | null>(null);
     const [pdfFile, setPdfFile] = useState<string | null>(null);
 
@@ -94,6 +95,8 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
 
     const [popUpActive, setPopUpActive] = useState<boolean>(false);
     const [isLoadingPdfs, setIsLoadingPdfs] = useState<boolean>(false);
+
+    const [pdfView, setPdfView] = useState<boolean>(false);
 
     const loadPdfs = async (userId: string | undefined) => {
         if(!userId) return;
@@ -234,7 +237,8 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
             
             const pdfUrl = uploadpdf_response.response?.url || "";
             const pdfKey = uploadpdf_response.response?.key || "";
-            setPdfFile(pdfUrl)
+            setPdfFile(pdfUrl);
+            setPdfName(pdfName);
 
             if (!(pdfUrl && pdfKey)){
                 console.error("No pdf url and/or returned from upload");
@@ -243,11 +247,6 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
             const pdfText = await extractAllPagesText(pdfUrl);
             console.log("pdfText: ", pdfText);
 
-            // if(!(user && isSignedIn)){
-            //     console.error("User not signed in and/or authenticated...");
-            //     setPopUpActive(true);
-            //     return;
-            // }
            await uploadPdfMetadata(
                 user.id,
                 pdfKey,
@@ -255,6 +254,8 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
                 pdfUrl,
                 pdfText || [],
             )
+
+            setPdfView(true);
         }
     }
 
@@ -284,7 +285,8 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
             
             const pdfUrl = uploadpdf_response.response?.url || "";
             const pdfKey = uploadpdf_response.response?.key || "";
-            setPdfFile(pdfUrl)
+            setPdfFile(pdfUrl);
+            setPdfName(pdfName);
 
             if (!(pdfUrl && pdfKey)){
                 console.error("No pdf url and/or returned from upload");
@@ -293,10 +295,6 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
             const pdfText = await extractAllPagesText(pdfUrl);
             console.log("pdfText: ", pdfText);
 
-            // if(!(user && isSignedIn)){
-            //     console.error("User not signed in and/or authenticated...");
-            //     return;
-            // }
             await uploadPdfMetadata(
                 user.id,
                 pdfKey,
@@ -304,6 +302,8 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
                 pdfUrl,
                 pdfText || [],
             )
+
+            setPdfView(true);
         }
     }
 
@@ -346,7 +346,9 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
                         </AlertDescription>
                     </Alert>
                 )}
-                <h1 className="text-5xl font-bold tracking-tight">PlayAI Book Reader</h1>
+                <h1 onClick={() => {
+                    setPdfView(false);
+                }} className="text-5xl font-bold tracking-tight">PlayAI Book Reader</h1>
                 <div className="flex items-center space-x-2">
                     <SignedIn>
                         <SignOutButton>
@@ -361,7 +363,7 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
                 </div>
             </header>
             
-            {!pdfFile ? (
+            {(!pdfFile || !pdfView) ? (
                 <div className="space-y-8">
                     <motion.div
                         className={`border-2 border-dashed rounded-2xl p-12 transition-all duration-300 ease-in-out ${
@@ -409,6 +411,14 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: index * 0.1 }}
+                                    onClick={() => {
+                                        setPdfFile(pdf.url);
+                                        setPagesText(pdf.text);
+                                        setNumPages(pdf.text.length);
+                                        setPdfName(pdf.name);
+                                        setPageNumber(1);
+                                        setPdfView(true);
+                                    }}
                                 >
                                     <div className="flex items-start justify-between">
                                         <div className="flex items-center space-x-3">
@@ -427,6 +437,14 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
                                             variant="ghost"
                                             size="icon"
                                             className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                            onClick={() => {
+                                                setPdfFile(pdf.url);
+                                                setPagesText(pdf.text);
+                                                setNumPages(pdf.text.length);
+                                                setPdfName(pdf.name);
+                                                setPageNumber(1);
+                                                setPdfView(true);
+                                            }}
                                         >
                                             <Play className="h-4 w-4" />
                                         </Button>
@@ -439,7 +457,16 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
                 </div>
             ) : (
                 <div className="bg-zinc-900 rounded-2xl overflow-hidden">
-                    <div className="p-6">
+                    <div className="flex flex-col gap-2 p-6">
+                        <div className="flex justify-between items-center">
+                            <Button 
+                                variant="ghost"
+                                className="hover:bg-zinc-800 hover:text-white" onClick={() => {
+                                    setPdfView(false);
+                                }}
+                            >Home</Button>
+                            <h2 className="text-xl">{pdfName}</h2>
+                        </div>
                         <div className="flex justify-between items-center mb-6">
                             <Button
                                 variant="ghost"
