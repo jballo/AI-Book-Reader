@@ -141,3 +141,39 @@ export async function ListPdfs(userId: string) {
         }
     }
 }
+
+
+export async function DeletePdf(id: string) {
+    console.log("id: ", id);
+    try {
+        const url_endpoint = new URL(process.env.DELETE_PDF_ENDPOINT || "http://127.0.0.1:5001/delete-pdf");
+
+        const response = await fetch(url_endpoint.toString(), {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-API-KEY": process.env.API_KEY || "",
+            },
+            body: JSON.stringify({ id }),
+        })
+
+        if (!response.ok) {
+            throw new Error("Failed to delete pdf");
+        }
+
+        const result = await response.json();
+        console.log("Result: ", result);
+
+        return {
+            success: true,
+            response: result.content,
+        }
+    } catch (error) {
+        console.log("Error: ", error);
+        return {
+            success: false,
+            error:
+                error instanceof Error ? error.message : "Failed to delete pdf",
+        }
+    }
+}
