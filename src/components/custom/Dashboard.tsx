@@ -224,22 +224,14 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
         e.stopPropagation()
     }
 
-    const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault()
-        e.stopPropagation()
-        setIsDragging(false)
+    const savePdf = async(file: File) => {
         if(!(user && isSignedIn)){
             console.log("User not signed in and/or authenticated...");
             setPopUpActive(true);
             return;
         }
 
-        const file = e.dataTransfer.files[0]
-        if (file && file.type === "application/pdf") {
-            //   setPdfFile(file)
-            // setPageNumber(1)
-
-            const pdfName = file.name;
+        const pdfName = file.name;
             console.log("pdfName: ", pdfName);
 
             const actionFormData = new FormData();
@@ -282,64 +274,24 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
             setUserPdfs([...userPdfs, newPdf]);
 
             setPdfView(true);
+    }
+
+    const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setIsDragging(false)
+
+        const file = e.dataTransfer.files[0]
+        if (file && file.type === "application/pdf") {
+            savePdf(file);
         }
     }
 
     const onFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        if(!(user && isSignedIn)){
-            console.log("User not signed in and/or authenticated...");
-            setPopUpActive(true);
-            return;
-        }
+
         const file = event.target.files?.[0]
         if (file && file.type === "application/pdf") {
-            // setPdfFile(file)
-            // setPageNumber(1)
-
-            const pdfName = file.name;
-            console.log("pdfName: ", pdfName);
-
-            const actionFormData = new FormData();
-            actionFormData.append("pdf", file);
-
-            const uploadpdf_response = await uploadPdf(actionFormData);
-
-            if (!uploadpdf_response.success){
-                console.error("PDF upload failed");
-                return;
-            }
-            
-            const pdfUrl = uploadpdf_response.response?.url || "";
-            const pdfKey = uploadpdf_response.response?.key || "";
-            setPdfFile(pdfUrl);
-            setPdfName(pdfName);
-
-            if (!(pdfUrl && pdfKey)){
-                console.error("No pdf url and/or returned from upload");
-                return;
-            }
-            const pdfText = await extractAllPagesText(pdfUrl);
-            console.log("pdfText: ", pdfText);
-
-            await uploadPdfMetadata(
-                user.id,
-                pdfKey,
-                pdfName,
-                pdfUrl,
-                pdfText || [],
-            )
-
-            const newPdf: ListedPDF = {
-                url: pdfUrl,
-                key: pdfKey,
-                name: pdfName,
-                text: pdfText || [],
-                type: "listed",
-            }
-
-            setUserPdfs([...userPdfs, newPdf]);
-
-            setPdfView(true);
+            savePdf(file);
         }
     }
 
