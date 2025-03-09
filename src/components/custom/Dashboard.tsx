@@ -271,6 +271,15 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
                 pdfUrl,
                 pdfText || [],
             )
+            const newPdf: ListedPDF = {
+                url: pdfUrl,
+                key: pdfKey,
+                name: pdfName,
+                text: pdfText || [],
+                type: "listed",
+            }
+
+            setUserPdfs([...userPdfs, newPdf]);
 
             setPdfView(true);
         }
@@ -319,6 +328,16 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
                 pdfUrl,
                 pdfText || [],
             )
+
+            const newPdf: ListedPDF = {
+                url: pdfUrl,
+                key: pdfKey,
+                name: pdfName,
+                text: pdfText || [],
+                type: "listed",
+            }
+
+            setUserPdfs([...userPdfs, newPdf]);
 
             setPdfView(true);
         }
