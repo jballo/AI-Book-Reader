@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "../ui/alert-dialog"
+import { Separator } from "../ui/separator";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -297,14 +298,26 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
 
     const MemoizedPage = useMemo(() => {
         return (
-            <Page 
-            pageNumber={pageNumber}
-            // onRenderSuccess={() => setPageRendering(false)}
-            // onRenderError={() => setPageRendering(false)}
-            renderTextLayer={true}
-            renderAnnotationLayer={true}
-            loading={<div className="flex justify-center p-10"><div className="animate-pulse">Loading page...</div></div>}
-            />
+            <div
+                style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    objectFit: 'contain',
+                }}
+            >
+                <Page 
+                    pageNumber={pageNumber}
+                    // onRenderSuccess={() => setPageRendering(false)}
+                    // onRenderError={() => setPageRendering(false)}
+                    renderTextLayer={true}
+                    renderAnnotationLayer={true}
+                    className="w-full h-full"
+                    scale={0.7}
+                    loading={<div className="flex justify-center p-10"><div className="animate-pulse">Loading page...</div></div>}
+                />
+            </div>
         );
     }, [pageNumber]);
 
@@ -488,21 +501,6 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
                                                 </AlertDialogFooter>
                                             </AlertDialogContent>
                                         </AlertDialog>
-                                        {/* <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 hover:text-white"
-                                            onClick={() => {
-                                                setPdfFile(pdf.url);
-                                                setPagesText(pdf.text);
-                                                setNumPages(pdf.text.length);
-                                                setPdfName(pdf.name);
-                                                setPageNumber(1);
-                                                setPdfView(true);
-                                            }}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button> */}
                                     </div>
                                 </motion.div>
                             ))
@@ -520,7 +518,7 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
                                     setPdfView(false);
                                 }}
                             >Home</Button>
-                            <h2 className="text-xl">{pdfName}</h2>
+                            <h2 className="text-xl font-medium">{pdfName}</h2>
                         </div>
                         <div className="flex justify-between items-center mb-6">
                             <Button
@@ -543,32 +541,41 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
                                 <ChevronRight className="h-6 w-6" />
                             </Button>
                         </div>
+                        <div className="flex flex-row w-full gap-4 ">
+                            
+                            <div className="flex flex-col gap-2 w-1/2">
+                                <h2 className="text-lg font-semibold">Pdf Viewer</h2>   
+                                <Separator className="bg-gray-700"/>
+                                <div className="pdf-container h-[calc(100vh-420px)] min-h-[400px] overflow-y-auto w-full flex justify-center">
+                                    <Document
+                                        file={pdfFile}
+                                        onLoadSuccess={onDocumentLoadSuccess}
+                                    >
+                                        {MemoizedPage}
+                                    </Document>
+                                </div>
 
-                        
-                        <div className="pdf-container h-[calc(100vh-420px)] min-h-[400px] overflow-y-auto flex justify-center">
-                            <Document
-                                file={pdfFile}
-                                onLoadSuccess={onDocumentLoadSuccess}
-                            >
-                                {MemoizedPage}
-                            </Document>
-                        </div>
+                                <div className="flex items-center justify-between gap-1">
+                                    <div className="flex items-center space-x-4">
+                                        <AudioPlayer 
+                                            text={pagesText[(pageNumber || 1) - 1] || ""}
+                                            convertTextToSpeech={convertTextToSpeech}
+                                        />
+                                    </div>
 
-                        <div className="flex items-center justify-between gap-12">
-                            <div className="flex items-center space-x-4">
-                                <AudioPlayer 
-                                    text={pagesText[(pageNumber || 1) - 1] || ""}
-                                    convertTextToSpeech={convertTextToSpeech}
-                                />
-                            </div>
-                            <div className="flex items-center">
-                                <h3 className="font-medium mb-2">Current Page Text:</h3>
-                                <div className="max-h-40 overflow-y-auto  p-3 text-sm">
-                                    {pagesText[(pageNumber || 1)-1] || "No text found on this page"}
                                 </div>
                             </div>
-
+                            <div className="flex flex-col gap-2 w-1/2">
+                                    <h2 className="text-lg font-semibold">Current Page</h2>
+                                    <Separator className="bg-gray-700" />
+                                    <div className="flex flex-row justify-center">
+                                        <div className="flex flex-col text-center h-[calc(100vh-422px)] overflow-y-auto text-md w-10/12">
+                                            {pagesText[(pageNumber || 1)-1] || "No text found on this page"}
+                                        </div>
+                                    </div>
+                            </div>
                         </div>
+
                     </div>
                 </div>
             )}
