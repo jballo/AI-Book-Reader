@@ -8,24 +8,14 @@ import 'react-pdf/dist/esm/Page/TextLayer.css'; // Import the TextLayer CSS
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css'; // Import AnnotationLayer CSS, if needed
 import AudioPlayer from "./Audioplayer";
 import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Download, OctagonX, Trash2, Shuffle } from "lucide-react";
+import { ChevronLeft, ChevronRight, OctagonX, Shuffle } from "lucide-react";
 import {
   Alert,
   AlertDescription,
   AlertTitle,
 } from "../ui/alert";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "../ui/alert-dialog"
 import { Separator } from "../ui/separator";
+import PdfListView from "./PdfListView";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -419,93 +409,7 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
                         View all
                         </Button>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {isLoadingPdfs ? (
-                            <p className="text-zinc-400">Loading PDFs...</p>
-                        ): (!isSignedIn && isLoaded) ? (
-                            <p className="text-zinc-400">Sign in to view your PDFs.</p>
-                        ) : userPdfs.length === 0 ? (
-                            <p className="text-zinc-400">No PDFs uploaded yet.</p>
-                        ): (
-                            userPdfs.map((pdf, index) => (
-                                <motion.div
-                                    key={pdf.key}
-                                    className="bg-zinc-900 rounded-xl p-4 hover:bg-zinc-800 transition-colors cursor-pointer group"
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: index * 0.1 }}
-                                    onClick={() => {
-                                        if(!isDeleteDialogOpen){
-                                            setPdfFile(pdf.url);
-                                            setPagesText(pdf.text);
-                                            setNumPages(pdf.text.length);
-                                            setPdfName(pdf.name);
-                                            setPageNumber(1);
-                                            setPdfView(true);
-                                        }
-                                    }}
-                                >
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex items-center space-x-3">
-                                            <div className="p-2 bg-zinc-800 rounded-lg group-hover:bg-zinc-700 transition-colors">
-                                            <Download className="h-5 w-5 text-[#C1FF7A]" />
-                                            </div>
-                                            <div>
-                                                <h3 className="font-medium text-white">{pdf.name}</h3>
-                                                {/* <p className="text-sm text-zinc-400 flex items-center mt-1">
-                                                    <Clock className="h-3 w-3 mr-1" />
-                                                    {pdf.lastOpened}
-                                                </p> */}
-                                            </div>
-                                        </div>
-                                        <AlertDialog
-                                            onOpenChange={()=> {
-                                                console.log("Hello");
-                                            }}
-                                        >
-                                            <AlertDialogTrigger asChild>
-                                                {/* <Button variant="outline">Show Dialog</Button> */}
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 hover:text-white"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation(); // Prevent click from propogating to the parent div
-                                                        setIsDeleteDialogOpen(true);
-                                                        console.log("Trash button clicked.");
-                                                    }}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent className="bg-zinc-900 text-white border-zinc-700">
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>Are sure you want to delete this pdf?</AlertDialogTitle>
-                                                    <AlertDialogDescription className="text-zinc-400">
-                                                        This action cannot be undone. This will permanently delete your
-                                                        pdf and corresponding your data from our servers.
-                                                    </AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel className="bg-zinc-800 hover:bg-zinc-700 text-white" onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setIsDeleteDialogOpen(false);
-                                                        console.log("Cancel deletion button clicked.");
-                                                    }}>Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction className="bg-red-600 hover:bg-red-500 text-white" onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setIsDeleteDialogOpen(false);
-                                                        console.log("Final deletion button clicked.");
-                                                        deleteOnClick(pdf.key);
-                                                    }}>Delete</AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                    </div>
-                                </motion.div>
-                            ))
-                        )}
-                    </div>
+                    <PdfListView userPdfs={userPdfs} isLoadingPdfs={isLoadingPdfs} isLoaded={isLoaded} isDeleteDialogOpen={isDeleteDialogOpen} setIsDeleteDialogOpen={setIsDeleteDialogOpen} setPdfFile={setPdfFile} setPagesText={setPagesText} setNumPages={setNumPages} setPdfName={setPdfName} setPageNumber={setPageNumber} setPdfView={setPdfView} deleteOnClick={deleteOnClick} />
                     </div>
                 </div>
             ) : (
