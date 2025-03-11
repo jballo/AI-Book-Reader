@@ -12,6 +12,7 @@ import {
 import PdfView from "./PdfView";
 import PdfListView from "./PdfListView";
 import FileUploader from "./FileUploader";
+import InformationalBanner from "./InformationalBanner";
 
 
 interface BasePDF {
@@ -154,16 +155,7 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
 
     return (<div className="min-h-screen bg-black text-white">
         {/* Top Banner */}
-        <div className="bg-[#C1FF7A] text-black px-4 py-2 text-center text-sm font-medium">
-            <span className="inline-flex items-center">
-                NEW MODEL
-                <span className="mx-2">•</span>
-                Meet PlayAI Book Reader - a voice model for fluid, emotive reading.
-                <Button variant="link" className="text-black font-semibold ml-2">
-                    Learn more →
-                </Button>
-            </span>
-        </div>
+        <InformationalBanner />
         
         <div className="flex flex-col max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <header className="flex justify-between items-center mb-12">
