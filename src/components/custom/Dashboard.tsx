@@ -2,10 +2,8 @@
 
 import { SignedIn, SignedOut, SignInButton, SignOutButton, useUser } from "@clerk/nextjs";
 import { Button } from "../ui/button";
-import { useEffect, useRef, useState } from "react";
-import { pdfjs } from 'react-pdf';
-import { motion } from "framer-motion";
-import { OctagonX, Shuffle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { OctagonX } from "lucide-react";
 import {
   Alert,
   AlertDescription,
@@ -13,11 +11,7 @@ import {
 } from "../ui/alert";
 import PdfView from "./PdfView";
 import PdfListView from "./PdfListView";
-
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString();
+import FileUploader from "./FileUploader";
 
 
 interface BasePDF {
@@ -89,11 +83,6 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
      // state for text extraction
     const [pagesText, setPagesText] = useState<string[]>([]);
 
-
-    const [isDragging, setIsDragging] = useState<boolean>(false)
-    const fileInputRef = useRef<HTMLInputElement>(null)
-    // const [pageRendering, setPageRendering] = useState(false);
-
     const [userPdfs, setUserPdfs] = useState<ListedPDF[]>([]);
 
     const [popUpActive, setPopUpActive] = useState<boolean>(false);
@@ -140,130 +129,6 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
     useEffect(() => {
         console.log("len of userPdfs: ", userPdfs.length);
     }, [userPdfs]);
-
-    const extractAllPagesText = async (pdfUrl: string) => {
-        if (!pdfUrl) return;
-        
-        try {
-            
-            // Load the PDF document
-            const loadingTask = pdfjs.getDocument(pdfUrl);
-            const pdf = await loadingTask.promise;
-            
-            const extractedText: string[] = [];
-            
-            // Process each page
-            for (let i = 1; i <= pdf.numPages; i++) {
-                
-                const page = await pdf.getPage(i);
-                
-                
-                const textContent = await page.getTextContent();
-                
-                
-                const pageText = textContent.items
-                    .map(item => ('str' in item ? item.str : ''))
-                    .join(' ');
-                extractedText.push(pageText);
-            }
-            
-            setPagesText(extractedText);
-            console.log(`Extracted text from ${extractedText.length} pages`);
-            return extractedText;
-        } catch (error) {
-            console.error("Error extracting PDF text:", error);
-        }
-    };
-
-
-
-    const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault()
-        e.stopPropagation()
-        setIsDragging(true)
-    }
-
-    const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault()
-        e.stopPropagation()
-        setIsDragging(false)
-    }
-
-    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault()
-        e.stopPropagation()
-    }
-
-    const savePdf = async(file: File) => {
-        if(!(user && isSignedIn)){
-            console.log("User not signed in and/or authenticated...");
-            setPopUpActive(true);
-            return;
-        }
-
-        const pdfName = file.name;
-            console.log("pdfName: ", pdfName);
-
-            const actionFormData = new FormData();
-            actionFormData.append("pdf", file);
-
-            const uploadpdf_response = await uploadPdf(actionFormData);
-
-            if (!uploadpdf_response.success){
-                console.error("PDF upload failed");
-                return;
-            }
-            
-            const pdfUrl = uploadpdf_response.response?.url || "";
-            const pdfKey = uploadpdf_response.response?.key || "";
-            setPdfFile(pdfUrl);
-            setPdfName(pdfName);
-
-            if (!(pdfUrl && pdfKey)){
-                console.error("No pdf url and/or returned from upload");
-                return;
-            }
-            const pdfText = await extractAllPagesText(pdfUrl);
-            console.log("pdfText: ", pdfText);
-
-           await uploadPdfMetadata(
-                user.id,
-                pdfKey,
-                pdfName,
-                pdfUrl,
-                pdfText || [],
-            )
-            const newPdf: ListedPDF = {
-                url: pdfUrl,
-                key: pdfKey,
-                name: pdfName,
-                text: pdfText || [],
-                type: "listed",
-            }
-
-            setUserPdfs([...userPdfs, newPdf]);
-
-            setPdfView(true);
-    }
-
-    const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault()
-        e.stopPropagation()
-        setIsDragging(false)
-
-        const file = e.dataTransfer.files[0]
-        if (file && file.type === "application/pdf") {
-            savePdf(file);
-        }
-    }
-
-    const onFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-
-        const file = event.target.files?.[0]
-        if (file && file.type === "application/pdf") {
-            savePdf(file);
-        }
-    }
 
 
     const deleteOnClick = async (id: string) => {
@@ -332,38 +197,15 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
             
             {(!pdfFile || !pdfView) ? (
                 <div className="space-y-8">
-                    <motion.div
-                        className={`border-2 border-dashed rounded-2xl p-12 transition-all duration-300 ease-in-out ${
-                            isDragging ? "border-[#C1FF7A] bg-[#C1FF7A] bg-opacity-5" : "border-zinc-800 hover:border-zinc-700"
-                        }`}
-                        onDragEnter={handleDragEnter}
-                        onDragOver={handleDragOver}
-                        onDragLeave={handleDragLeave}
-                        onDrop={handleDrop}
-                        whileHover={{ scale: 1.01 }}
-                        whileTap={{ scale: 0.99 }}
-                    >
-                        <div className="text-center">
-                            <Shuffle className="mx-auto h-12 w-12 text-zinc-500" />
-                            <h2 className="mt-6 text-2xl font-semibold">Upload your PDF</h2>
-                            <p className="mt-2 text-zinc-400">Drag and drop your file here, or click to select</p>
-                            <input ref={fileInputRef} type="file" accept=".pdf" className="sr-only" onChange={onFileChange} />
-                            <Button
-                                onClick={() => fileInputRef.current?.click()}
-                                className="mt-6 bg-[#C1FF7A] text-black hover:bg-[#B1EF6A] transition-colors"
-                            >
-                                Select PDF file
+                    <FileUploader setPopUpActive={setPopUpActive} uploadPdf={uploadPdf} uploadPdfMetadata={uploadPdfMetadata} setPdfFile={setPdfFile} setPdfName={setPdfName} setPagesText={setPagesText} userPdfs={userPdfs} setPdfView={setPdfView} setUserPdfs={setUserPdfs} />
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-xl font-semibold">PDF Selection</h2>
+                            <Button variant="ghost" className="text-zinc-400 hover:text-white">
+                            View all
                             </Button>
                         </div>
-                    </motion.div>
-                    <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-semibold">PDF Selection</h2>
-                        <Button variant="ghost" className="text-zinc-400 hover:text-white">
-                        View all
-                        </Button>
-                    </div>
-                    <PdfListView userPdfs={userPdfs} isLoadingPdfs={isLoadingPdfs} isLoaded={isLoaded} isDeleteDialogOpen={isDeleteDialogOpen} setIsDeleteDialogOpen={setIsDeleteDialogOpen} setPdfFile={setPdfFile} setPagesText={setPagesText} setNumPages={setNumPages} setPdfName={setPdfName} setPageNumber={setPageNumber} setPdfView={setPdfView} deleteOnClick={deleteOnClick} />
+                        <PdfListView userPdfs={userPdfs} isLoadingPdfs={isLoadingPdfs} isLoaded={isLoaded} isDeleteDialogOpen={isDeleteDialogOpen} setIsDeleteDialogOpen={setIsDeleteDialogOpen} setPdfFile={setPdfFile} setPagesText={setPagesText} setNumPages={setNumPages} setPdfName={setPdfName} setPageNumber={setPageNumber} setPdfView={setPdfView} deleteOnClick={deleteOnClick} />
                     </div>
                 </div>
             ) : (
