@@ -4,15 +4,22 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
 import AudioPlayer from "./Audioplayer";
-// import { Document, Page, pdfjs } from 'react-pdf';
-// import { useMemo } from "react";
-// import 'react-pdf/dist/esm/Page/TextLayer.css'; // Import the TextLayer CSS
-// import 'react-pdf/dist/esm/Page/AnnotationLayer.css'; // Import 
+import { Document, Page, pdfjs } from 'react-pdf';
+import { useState } from "react";
+import 'react-pdf/dist/esm/Page/TextLayer.css'; // Import the TextLayer CSS
+import 'react-pdf/dist/esm/Page/AnnotationLayer.css'; // Import 
 
 
 // pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 //   'pdfjs-dist/build/pdf.worker.min.mjs',
 //   import.meta.url,
+// ).toString();
+
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/legacy/build/pdf.worker.min.mjs`;
+
+// pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+//   'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
+//    import.meta.url,
 // ).toString();
 
 interface AudioProps {
@@ -38,13 +45,15 @@ interface PdfViewProps {
 
 } 
 
-export default function PdfView({ setPdfView, pdfName, numPages, pagesText, convertTextToSpeech, pageNumber, setPageNumber}: PdfViewProps){
+export default function PdfView({ setPdfView, pdfName, numPages, pdfFile, pagesText, convertTextToSpeech, setNumPages, pageNumber, setPageNumber}: PdfViewProps){
     // const [pageNumber, setPageNumber] = useState<number>();
+    const [pdfError, setPdfError] = useState<Error | null>(null);
+    // const [pageError, setPageError] = useState<Error | null>(null);
 
-    // function onDocumentLoadSuccess({ numPages }: { numPages: number }): void {
-    //     setNumPages(numPages);
-    //     setPageNumber(1);
-    // }
+    function onDocumentLoadSuccess({ numPages }: { numPages: number }): void {
+        setNumPages(numPages);
+        setPageNumber(1);
+    }
 
     function changePage(offset: number) {
         // setPageNumber(prevPageNumber => (prevPageNumber || 1) + offset);
@@ -78,6 +87,10 @@ export default function PdfView({ setPdfView, pdfName, numPages, pagesText, conv
     //                 className="w-full h-full"
     //                 scale={0.7}
     //                 loading={<div className="flex justify-center p-10"><div className="animate-pulse">Loading page...</div></div>}
+    //                 onError={(error) => {
+    //                     console.error("Page Render Error: ", error);
+    //                     setPageError(error);
+    //                 }}
     //             />
     //         </div>
     //     );
@@ -85,6 +98,11 @@ export default function PdfView({ setPdfView, pdfName, numPages, pagesText, conv
 
     return (
         <div className="bg-zinc-900 rounded-2xl overflow-hidden">
+            {pdfError && (
+                <div className="text-red-500 p-4">
+                Error loading PDF: {pdfError.message}
+                </div>
+            )}
             <div className="flex flex-col gap-2 p-6">
                 <div className="flex justify-between items-center">
                     <Button 
@@ -116,20 +134,43 @@ export default function PdfView({ setPdfView, pdfName, numPages, pagesText, conv
                         <ChevronRight className="h-6 w-6" />
                     </Button>
                 </div>
-                <div className="flex flex-row w-full gap-4 ">  
-                    <div className="flex flex-col gap-2 w-1/2">
+                <div className="flex flex-col md:flex-row w-full gap-4">  
+                    <div className="flex flex-col gap-2 md:w-full">
                         <h2 className="text-lg font-semibold">Pdf Viewer</h2>   
                         <Separator className="bg-gray-700"/>
                         <div className="pdf-container h-[calc(100vh-420px)] min-h-[400px] overflow-y-auto w-full flex justify-center">
-                            {/*
                             <Document
                                 file={pdfFile}
                                 onLoadSuccess={onDocumentLoadSuccess}
+                                onLoadError={(error) => {
+                                    console.error("PDF Load Error: ", error);
+                                    setPdfError(error);
+                                }}
                             >
-                                {MemoizedPage}
+                                {/* {MemoizedPage} */}
+                                <div
+                                    style={{
+                                        width: '100%',
+                                        height: '100%',
+                                        display: 'flex',
+                                        justifyContent: 'center',
+                                        objectFit: 'contain',
+                                    }}
+                                >
+                                    <Page 
+                                        pageNumber={pageNumber}
+                                        renderTextLayer={true}
+                                        renderAnnotationLayer={true}
+                                        className="w-full h-full"
+                                        scale={0.7}
+                                        loading={<div className="flex justify-center p-10"><div className="animate-pulse">Loading page...</div></div>}
+                                        onError={(error) => {
+                                            console.error("Page Render Error: ", error);
+                                            setPdfError(error);
+                                        }}
+                                    />
+                                </div>
                             </Document>
-                            
-                            */}
                         </div>
                         <div className="flex items-center justify-between gap-1">
                             <div className="flex items-center space-x-4">
@@ -140,7 +181,7 @@ export default function PdfView({ setPdfView, pdfName, numPages, pagesText, conv
                             </div>
                         </div>
                     </div>
-                    <div className="flex flex-col gap-2 w-1/2">
+                    <div className="flex flex-col gap-2 md:w-full">
                         <h2 className="text-lg font-semibold">Current Page</h2>
                         <Separator className="bg-gray-700" />
                         <div className="flex flex-row justify-center">
