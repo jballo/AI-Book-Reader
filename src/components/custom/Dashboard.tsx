@@ -1,14 +1,19 @@
 "use client";
-
+import "core-js/proposals/promise-with-resolvers";
 import { useUser } from "@clerk/nextjs";
 import { Button } from "../ui/button";
 import { useEffect, useState } from "react";
-import PdfView from "./PdfView";
+// import PdfView from "./PdfView";
 import PdfListView from "./PdfListView";
 import FileUploader from "./FileUploader";
 import InformationalBanner from "./InformationalBanner";
 import Header from "./Header";
+import dynamic from "next/dynamic";
 
+const PdfView = dynamic(() => import('./PdfView'), {
+  ssr: false,
+  loading: () => <p>Loading PDF viewer...</p>, // Optional: Add a loading indicator
+});
 
 interface BasePDF {
     url: string,
@@ -154,7 +159,6 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
         
         <div className="flex flex-col max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <Header popUpActive={popUpActive} setPdfView={setPdfView} />
-            
             {(!pdfFile || !pdfView) ? (
                 <div className="space-y-8">
                     <FileUploader setPopUpActive={setPopUpActive} uploadPdf={uploadPdf} uploadPdfMetadata={uploadPdfMetadata} setPdfFile={setPdfFile} setPdfName={setPdfName} setPagesText={setPagesText} userPdfs={userPdfs} setPdfView={setPdfView} setUserPdfs={setUserPdfs} />
