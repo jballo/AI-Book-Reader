@@ -5,7 +5,7 @@ import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
 import AudioPlayer from "./Audioplayer";
 import { Document, Page, pdfjs } from 'react-pdf';
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import 'react-pdf/dist/esm/Page/TextLayer.css'; // Import the TextLayer CSS
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css'; // Import 
 
@@ -46,9 +46,8 @@ interface PdfViewProps {
 } 
 
 export default function PdfView({ setPdfView, pdfName, numPages, pdfFile, pagesText, convertTextToSpeech, setNumPages, pageNumber, setPageNumber}: PdfViewProps){
-    // const [pageNumber, setPageNumber] = useState<number>();
     const [pdfError, setPdfError] = useState<Error | null>(null);
-    // const [pageError, setPageError] = useState<Error | null>(null);
+    const [pdfWidth, setPdfWidth] = useState<number | null>(null);
 
     function onDocumentLoadSuccess({ numPages }: { numPages: number }): void {
         setNumPages(numPages);
@@ -68,33 +67,34 @@ export default function PdfView({ setPdfView, pdfName, numPages, pdfFile, pagesT
     function nextPage() {
         changePage(1);
     }
+    useEffect(() => {
+        if (window.innerWidth <= 400){
+            setPdfWidth(300);
+        } else if ( window.innerWidth <= 640 ) {
+            setPdfWidth(300);
+        } else if ( window.innerWidth <= 768 ) {
+            setPdfWidth(380);
+        }
 
-    // const MemoizedPage = useMemo(() => {
-    //     return (
-    //         <div
-    //             style={{
-    //                 width: '100%',
-    //                 height: '100%',
-    //                 display: 'flex',
-    //                 justifyContent: 'center',
-    //                 objectFit: 'contain',
-    //             }}
-    //         >
-    //             <Page 
-    //                 pageNumber={pageNumber}
-    //                 renderTextLayer={true}
-    //                 renderAnnotationLayer={true}
-    //                 className="w-full h-full"
-    //                 scale={0.7}
-    //                 loading={<div className="flex justify-center p-10"><div className="animate-pulse">Loading page...</div></div>}
-    //                 onError={(error) => {
-    //                     console.error("Page Render Error: ", error);
-    //                     setPageError(error);
-    //                 }}
-    //             />
-    //         </div>
-    //     );
-    // }, [pageNumber]);
+
+        window.addEventListener('resize', ()=> {
+            if (window.innerWidth <= 400){
+                setPdfWidth(300);
+            } else if ( window.innerWidth <= 640 ) {
+                setPdfWidth(300);
+            } else if ( window.innerWidth <= 768 ) {
+                setPdfWidth(380);
+            }
+       })
+
+       return () => {
+            window.removeEventListener('resize', () => {
+                console.log("Event listener 'resize' removed.");
+                setPdfWidth(400);
+            });
+
+       }
+    }, []);
 
     return (
         <div className="bg-zinc-900 rounded-2xl overflow-hidden">
@@ -161,8 +161,9 @@ export default function PdfView({ setPdfView, pdfName, numPages, pdfFile, pagesT
                                         pageNumber={pageNumber}
                                         renderTextLayer={true}
                                         renderAnnotationLayer={true}
-                                        className="w-full h-full"
-                                        scale={0.7}
+                                         className="w-full h-full"
+                                         // scale={0.5}
+                                        width={pdfWidth || 400}
                                         loading={<div className="flex justify-center p-10"><div className="animate-pulse">Loading page...</div></div>}
                                         onError={(error) => {
                                             console.error("Page Render Error: ", error);
