@@ -1,4 +1,4 @@
-# PlayAI Book Reader
+# Book Reader
 
 ## Overview
 
