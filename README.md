@@ -4,7 +4,7 @@
 
 PlayAI Book Reader is a web application that allows users to upload and read PDF files while providing text-to-speech functionality using PlayAI's API. The app enables smooth navigation between pages and audio playback of the displayed text. It also integrates with Clerk for user authentication and webhooks.
 
-![Book Reader Image](https://8n9nizq7e9.ufs.sh/f/5Hd9daUmOTNecmepElJQnyzb7RhMN8iojZuTFHlraBpvKfIV)
+![Book Reader Image](https://xrqb2mg56u.ufs.sh/f/DbWOBxCL0tnlGpxZZIKrfb4VW5x78FhpSNPz9asRimtvlD1n)
 
 ## Features
 
