@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
-import AudioPlayer from "./Audioplayer";
+import AudioPlayer, { PLAYBACK_SPEEDS } from "./Audioplayer";
 import { Document, Page, pdfjs } from 'react-pdf';
 import { useEffect, useRef, useState } from "react";
 import 'react-pdf/dist/esm/Page/TextLayer.css'; // Import the TextLayer CSS
@@ -56,6 +56,9 @@ export default function PdfView({ setPdfView, pdfName, numPages, pdfFile, pagesT
     const [pdfError, setPdfError] = useState<Error | null>(null);
     const [pageAreaWidth, setPageAreaWidth] = useState(0);
     const [zoom, setZoom] = useState(1);
+    const [playbackRate, setPlaybackRate] = useState(PLAYBACK_SPEEDS[1]);
+    const [autoTurn, setAutoTurn] = useState(false);
+    const [autoStartAudio, setAutoStartAudio] = useState(false);
     const pageAreaRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -76,7 +79,14 @@ export default function PdfView({ setPdfView, pdfName, numPages, pdfFile, pagesT
     }
 
     function changePage(offset: number) {
+        setAutoStartAudio(false);
         setPageNumber(Math.min(Math.max(pageNumber + offset, 1), numPages));
+    }
+
+    function handleAudioEnded() {
+        if (!autoTurn || pageNumber >= numPages) return;
+        setAutoStartAudio(true);
+        setPageNumber(pageNumber + 1);
     }
 
     function changeZoom(offset: number) {
@@ -202,8 +212,16 @@ export default function PdfView({ setPdfView, pdfName, numPages, pdfFile, pagesT
 
             <footer className="border-t border-border px-4 py-3 sm:px-6">
                 <AudioPlayer
+                    key={pageNumber}
                     text={pageText}
+                    pageNumber={pageNumber}
                     convertTextToSpeech={convertTextToSpeech}
+                    playbackRate={playbackRate}
+                    onPlaybackRateChange={setPlaybackRate}
+                    autoTurn={autoTurn}
+                    onAutoTurnChange={setAutoTurn}
+                    autoStart={autoStartAudio}
+                    onEnded={handleAudioEnded}
                 />
             </footer>
         </div>);
