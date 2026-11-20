@@ -14,7 +14,7 @@ export default function Header({ popUpActive, setPdfView }: HeaderProps) {
   return (
     <header className="flex justify-between items-center mb-12">
       {popUpActive && (
-        <Alert className="w-80 absolute top-24 left-1/2 transform -translate-x-1/2 z-50 bg-[#C1FF7A] border-black">
+        <Alert className="w-80 absolute top-24 left-1/2 transform -translate-x-1/2 z-50 bg-[#C1FF7A] border-black text-black">
           <AlertTitle className="flex flex-row gap-2 text-xl">
             {" "}
             <OctagonX /> Alert!
