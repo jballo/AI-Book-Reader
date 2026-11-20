@@ -10,6 +10,7 @@ const { UTApi } = uploadthingServer;
 import nodeFetch from "node-fetch";
 const fetch = nodeFetch;
 import { Webhook } from "svix";
+import fs from "fs";
 
 const port = process.env.PORT || 5001;
 
@@ -24,7 +25,7 @@ const utapi = new UTApi({
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-const { PGHOST, PGDATABASE, PGUSER, PGPASSWORD } = process.env;
+const { PGHOST, PGDATABASE, PGUSER, PGPASSWORD, PGSSLROOTCERT } = process.env;
 
 const pool = new Pool({
   host: PGHOST,
@@ -32,7 +33,7 @@ const pool = new Pool({
   user: PGUSER,
   password: PGPASSWORD,
   port: 5432,
-  ssl: true,
+  ssl: PGSSLROOTCERT ? { ca: fs.readFileSync(PGSSLROOTCERT, "utf8") } : true,
 });
 
 pool.on("error", (err) => {
@@ -60,11 +61,6 @@ app.post("/users", express.json(), async (req, res) => {
 
   const client = await pool.connect();
   try {
-    const createTableQuery = `
-    CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT NOT NULL);
-    `;
-    await client.query(createTableQuery);
-
     const insertUserQuery = `INSERT INTO users (id, email) VALUES ($1, $2);`;
     const values = [userId, email];
 
@@ -141,16 +137,30 @@ app.post("/upload-pdf", upload.single("pdf"), async (req, res) => {
     console.log("Authorized");
   }
 
+  if (!req.file) {
+    return res.status(400).json({
+      error: "No pdf file provided.",
+    });
+  }
+
   try {
     const fileData = new File([req.file.buffer], req.file.originalname, {
       type: req.file.mimetype,
     });
 
-    const response = await utapi.uploadFiles([fileData]);
+    const [result] = await utapi.uploadFiles([fileData]);
+
+    if (!result?.data) {
+      const reason = result?.error?.message || "Unknown UploadThing error";
+      console.error("UploadThing upload failed: ", result?.error);
+      return res.status(502).json({
+        error: `Failed to upload pdf to uploadthing: ${reason}`,
+      });
+    }
 
     const response_body = {
-      url: response[0].data.ufsUrl,
-      key: response[0].data.key,
+      url: result.data.ufsUrl,
+      key: result.data.key,
     };
 
     console.log("response_body: ", response_body);
@@ -186,11 +196,6 @@ app.post("/upload-pdf-metadata", express.json(), async (req, res) => {
     // Sanitize the pdf_text array to remove null bytes from each string
     const sanitizedText = pdf_text.map((text) => text.replace(/\0/g, ""));
 
-    const createTableQuery = `
-    CREATE TABLE IF NOT EXISTS pdfs (id TEXT PRIMARY KEY, name TEXT NOT NULL, url TEXT NOT NULL, uploader TEXT NOT NULL, text TEXT[] NOT NULL);
-    `;
-
-    await client.query(createTableQuery);
     const insertUserQuery = `INSERT INTO pdfs (id, name, url, uploader, text) VALUES ($1, $2, $3, $4, $5);`;
     const values = [pdf_key, pdf_name, pdf_url, userId, sanitizedText];
 
@@ -231,32 +236,33 @@ app.post("/text-to-speech", express.json(), async (req, res) => {
 
     console.log(`Converting text to speech (${text.length} characters)...`);
 
-    // Ensure proper headers
-    const options = {
-      method: "POST",
-      headers: {
-        AUTHORIZATION: process.env.PLAYAI_AUTH_KEY,
-        "X-USER-ID": process.env.PLAYAI_USER_ID,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "PlayDialog",
-        text: text,
-        voice:
-          "s3://voice-cloning-zero-shot/65977f5e-a22a-4b36-861b-ecede19bdd65/original/manifest.json",
-        outputFormat: "mp3",
-      }),
-    };
+    const { ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID } = process.env;
+    if (!ELEVENLABS_API_KEY || !ELEVENLABS_VOICE_ID) {
+      throw new Error("ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID must be set");
+    }
 
-    // Make the API call with direct streaming
-    const playAIResponse = await fetch(
-      "https://api.play.ai/api/v1/tts/stream",
-      options
+    const ttsResponse = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(
+        ELEVENLABS_VOICE_ID
+      )}/stream?output_format=mp3_44100_128`,
+      {
+        method: "POST",
+        headers: {
+          "xi-api-key": ELEVENLABS_API_KEY,
+          "Content-Type": "application/json",
+          Accept: "audio/mpeg",
+        },
+        body: JSON.stringify({
+          text,
+          model_id: process.env.ELEVENLABS_MODEL_ID || "eleven_multilingual_v2",
+        }),
+      }
     );
 
-    if (!playAIResponse.ok) {
+    if (!ttsResponse.ok) {
+      const detail = await ttsResponse.text().catch(() => "");
       throw new Error(
-        `PlayAI API error: ${playAIResponse.status} ${playAIResponse.statusText}`
+        `ElevenLabs API error: ${ttsResponse.status} ${ttsResponse.statusText} ${detail}`.trim()
       );
     }
 
@@ -267,7 +273,7 @@ app.post("/text-to-speech", express.json(), async (req, res) => {
     res.setHeader("Connection", "keep-alive");
 
     // Improve streaming by piping with error handling
-    const stream = playAIResponse.body;
+    const stream = ttsResponse.body;
 
     // Handle stream errors
     stream.on("error", (err) => {
@@ -427,11 +433,6 @@ app.post(
 
           client = await pool.connect();
 
-          const createTableQuery = `
-          CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT NOT NULL);
-          `;
-          await client.query(createTableQuery);
-
           const insertUserQuery = `INSERT INTO users (id, email) VALUES ($1, $2);`;
           const values = [userId, email];
           await client.query(insertUserQuery, values);
@@ -458,6 +459,21 @@ app.post(
   }
 );
 
-app.listen(port, () => {
-  console.log(`Listening on port ${port}`);
-});
+async function initDatabase() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS pdfs (id TEXT PRIMARY KEY, name TEXT NOT NULL, url TEXT NOT NULL, uploader TEXT NOT NULL, text TEXT[] NOT NULL);
+    CREATE INDEX IF NOT EXISTS pdfs_uploader_idx ON pdfs (uploader);
+  `);
+}
+
+initDatabase()
+  .then(() => {
+    app.listen(port, () => {
+      console.log(`Listening on port ${port}`);
+    });
+  })
+  .catch((err) => {
+    console.error("Failed to initialize database: ", err);
+    process.exit(1);
+  });

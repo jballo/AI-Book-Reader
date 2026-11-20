@@ -1,17 +1,17 @@
-# PlayAI Book Reader
+# Book Reader
 
 ## Overview
 
-PlayAI Book Reader is a web application that allows users to upload and read PDF files while providing text-to-speech functionality using PlayAI's API. The app enables smooth navigation between pages and audio playback of the displayed text. It also integrates with Clerk for user authentication and webhooks.
+PlayAI Book Reader is a web application that allows users to upload and read PDF files while providing text-to-speech functionality using ElevenLabs' API. The app enables smooth navigation between pages and audio playback of the displayed text. It also integrates with Clerk for user authentication and webhooks.
 
-![Book Reader Image](https://8n9nizq7e9.ufs.sh/f/5Hd9daUmOTNecmepElJQnyzb7RhMN8iojZuTFHlraBpvKfIV)
+![Book Reader Image](https://xrqb2mg56u.ufs.sh/f/DbWOBxCL0tnlGpxZZIKrfb4VW5x78FhpSNPz9asRimtvlD1n)
 
 ## Features
 
 -   **PDF Upload**: Users can upload a PDF file through the web interface.
 -   **Page Display**: The uploaded PDF is parsed and displayed one page at a time.
     -   Users can navigate between pages using next/previous buttons.
--   **Text-to-Speech (TTS)**: The content of the currently displayed page can be played as audio using the PlayAI Text-to-Speech API.
+-   **Text-to-Speech (TTS)**: The content of the currently displayed page can be played as audio using the ElevenLabs Text-to-Speech API.
     -   Users can control playback with play/pause functionality.
 -   **User Authentication**: Implemented using Clerk.
 -   **Webhooks**: Uses Clerk webhooks for user management.
@@ -22,7 +22,7 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
 -   **Backend**: Express
 -   **File Storage**: UploadThing
 -   **Auth**: Clerk
--   **APIs**: PlayAI Text-to-Speech API, Clerk Webhooks
+-   **APIs**: ElevenLabs Text-to-Speech API, Clerk Webhooks
 -   **Database**: Neon Postgres
 -   **Tunneling**: ngrok
 
@@ -63,18 +63,20 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
       PGUSER=your_postgres_user
       PGDATABASE=your_postgres_database
       PGPASSWORD=your_postgres_password
+      PGSSLROOTCERT=./your_provider_ca.crt # optional: CA certificate for providers with a private root (e.g. Supabase, AWS RDS)
 
       API_KEY=your_api_key # Generate with 'uuidgen' and keep consistent with .env.local
 
       UPLOADTHING_TOKEN=your_uploadthing_token
 
-      PLAYAI_AUTH_KEY=your_playai_auth_key
-      PLAYAI_USER_ID=your_playai_user_id
+      ELEVENLABS_API_KEY=your_elevenlabs_api_key
+      ELEVENLABS_VOICE_ID=your_elevenlabs_voice_id
+      ELEVENLABS_MODEL_ID=eleven_multilingual_v2 # optional, e.g. eleven_flash_v2_5 for lower latency
       CLERK_WEBHOOK_SECRET=your_clerk_webhook_secret
       ```
 
   **Important Notes:**
-    *   Replace `your_clerk_publishable_key`, `your_clerk_secret_key`, `your_api_secret`, `your_api_key`, `your_postgres_*`, `your_uploadthing_token`, `your_playai_auth_key`, `your_playai_user_id`, and `your_clerk_webhook_secret` with your actual credentials.
+    *   Replace `your_clerk_publishable_key`, `your_clerk_secret_key`, `your_api_secret`, `your_api_key`, `your_postgres_*`, `your_uploadthing_token`, `your_elevenlabs_api_key`, `your_elevenlabs_voice_id`, and `your_clerk_webhook_secret` with your actual credentials.
     *   The `CLERK_WEBHOOK_SECRET` is crucial for verifying Clerk webhooks. You can find this in your Clerk dashboard under Webhooks.
 
 4.  **Set up ngrok**
@@ -125,6 +127,7 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
 
 *   **"Webhook error: Error: No matching signature found"**: This usually means your `CLERK_WEBHOOK_SECRET` is incorrect or the request body is not being parsed correctly. Double-check your `.env` file and ensure you're using `express.raw({ type: 'application/json' })` middleware for the `/webhooks/clerk` route.
 *   **Database Connection Errors**: Verify that your Postgres credentials in the `.env` file are correct and that your database is running.
+*   **"self-signed certificate in certificate chain"**: Your Postgres provider signs its certificates with its own CA. Download the provider's CA certificate and point `PGSSLROOTCERT` in `server/.env` at it.
 *   **ngrok Errors**: Make sure `ngrok` is running correctly and that the forwarding URL is accessible.
     *   Ensure you have added your authtoken using `ngrok config add-authtoken $YOUR_AUTHTOKEN`.
 *   **UploadThing Errors**: Make sure `UPLOADTHING_TOKEN` is set correctly.
@@ -132,4 +135,4 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
 ## Additional Notes
 
 *   This setup is for local development. For production deployments, you'll need to use a proper hosting provider and configure your environment variables and webhooks accordingly.
-*   Make sure your PlayAI API keys are valid and that you have sufficient credits to use the Text-to-Speech API.
+*   Make sure your ElevenLabs API key is valid, has Text to Speech access, and that your account has enough credits.
