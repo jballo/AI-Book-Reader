@@ -10,7 +10,7 @@ import dynamic from "next/dynamic";
 
 const PdfView = dynamic(() => import('./PdfView'), {
   ssr: false,
-  loading: () => <p>Loading PDF viewer...</p>, // Optional: Add a loading indicator
+  loading: () => <p className="p-10 text-sm text-muted-foreground">Loading PDF viewer...</p>, // Optional: Add a loading indicator
 });
 
 interface BasePDF {
@@ -148,20 +148,20 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
         }
     }
 
+    if (pdfFile && pdfView) {
+        return <PdfView setPdfView={setPdfView} pdfName={pdfName} numPages={numPages || 1} pdfFile={pdfFile} pagesText={pagesText} convertTextToSpeech={convertTextToSpeech} setNumPages={setNumPages} pageNumber={pageNumber || 1} setPageNumber={setPageNumber} />;
+    }
+
     return (<div className="min-h-screen bg-background text-foreground">
         <div className="flex flex-col max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <Header popUpActive={popUpActive} setPdfView={setPdfView} />
-            {(!pdfFile || !pdfView) ? (
-                <div className="space-y-8">
-                    <FileUploader setPopUpActive={setPopUpActive} uploadPdf={uploadPdf} uploadPdfMetadata={uploadPdfMetadata} setPdfFile={setPdfFile} setPdfName={setPdfName} setPagesText={setPagesText} userPdfs={userPdfs} setPdfView={setPdfView} setUserPdfs={setUserPdfs} />
-                    <div className="space-y-4">
-                        <h2 className="font-serif text-3xl font-normal">Your library</h2>
-                        <PdfListView userPdfs={userPdfs} isLoadingPdfs={isLoadingPdfs} isLoaded={isLoaded} isDeleteDialogOpen={isDeleteDialogOpen} setIsDeleteDialogOpen={setIsDeleteDialogOpen} setPdfFile={setPdfFile} setPagesText={setPagesText} setNumPages={setNumPages} setPdfName={setPdfName} setPageNumber={setPageNumber} setPdfView={setPdfView} deleteOnClick={deleteOnClick} />
-                    </div>
+            <div className="space-y-8">
+                <FileUploader setPopUpActive={setPopUpActive} uploadPdf={uploadPdf} uploadPdfMetadata={uploadPdfMetadata} setPdfFile={setPdfFile} setPdfName={setPdfName} setPagesText={setPagesText} userPdfs={userPdfs} setPdfView={setPdfView} setUserPdfs={setUserPdfs} />
+                <div className="space-y-4">
+                    <h2 className="font-serif text-3xl font-normal">Your library</h2>
+                    <PdfListView userPdfs={userPdfs} isLoadingPdfs={isLoadingPdfs} isLoaded={isLoaded} isDeleteDialogOpen={isDeleteDialogOpen} setIsDeleteDialogOpen={setIsDeleteDialogOpen} setPdfFile={setPdfFile} setPagesText={setPagesText} setNumPages={setNumPages} setPdfName={setPdfName} setPageNumber={setPageNumber} setPdfView={setPdfView} deleteOnClick={deleteOnClick} />
                 </div>
-            ) : (
-                <PdfView setPdfView={setPdfView} pdfName={pdfName} numPages={numPages || 1} pdfFile={pdfFile} pagesText={pagesText} convertTextToSpeech={convertTextToSpeech} setNumPages={setNumPages} pageNumber={pageNumber || 1} setPageNumber={setPageNumber} />
-            )}
+            </div>
         </div>
   </div>);
 }
