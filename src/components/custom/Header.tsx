@@ -2,12 +2,7 @@
 
 import { OctagonX } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
-import {
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  SignOutButton,
-} from "@clerk/nextjs";
+import { Show, SignInButton, SignOutButton } from "@clerk/nextjs";
 import { Button } from "../ui/button";
 
 interface HeaderProps {
@@ -41,16 +36,16 @@ export default function Header({ popUpActive, setPdfView }: HeaderProps) {
         AI Book Reader
       </h1>
       <div className="flex items-center space-x-2">
-        <SignedIn>
+        <Show when="signed-in">
           <SignOutButton>
             <Button>Sign Out</Button>
           </SignOutButton>
-        </SignedIn>
-        <SignedOut>
+        </Show>
+        <Show when="signed-out">
           <SignInButton>
             <Button>Sign In</Button>
           </SignInButton>
-        </SignedOut>
+        </Show>
       </div>
     </header>
   );

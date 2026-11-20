@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint ."
   },
   "dependencies": {
-    "@clerk/nextjs": "^6.12.0",
+    "@clerk/nextjs": "^7.10.5",
     "@radix-ui/react-alert-dialog": "^1.1.6",
     "@radix-ui/react-separator": "^1.1.2",
     "@radix-ui/react-slot": "^1.1.2",
@@ -18,7 +18,7 @@
     "core-js": "^3.41.0",
     "framer-motion": "^12.4.7",
     "lucide-react": "^0.475.0",
-    "next": "^15.3.3",
+    "next": "^16.4.6",
     "react": "^19.0.0",
     "react-audio-player": "^0.17.0",
     "react-dom": "^19.0.0",
@@ -27,12 +27,11 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.1.7",
+    "eslint-config-next": "^16.4.6",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
