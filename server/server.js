@@ -387,10 +387,16 @@ app.post("/delete-pdf", express.json(), requireUser, async (req, res) => {
     console.log("Authorized");
   }
 
+  const { id } = req.body ?? {};
+  if (typeof id !== "string" || id.length === 0) {
+    return res.status(400).json({
+      error: "Invalid id.",
+    });
+  }
+
   const client = await pool.connect();
 
   try {
-    const { id } = req.body;
     const userId = req.userId;
     console.log("id: ", id);
 

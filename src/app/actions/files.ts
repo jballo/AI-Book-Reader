@@ -161,6 +161,10 @@ export async function DeletePdf(id: string) {
     const sessionToken = userId ? await getToken() : null;
     if (!sessionToken) return UNAUTHORIZED;
 
+    if (typeof id !== "string" || id.length === 0) {
+        return { success: false, error: "Invalid id" };
+    }
+
     console.log("id: ", id);
     try {
         const url_endpoint = new URL(process.env.DELETE_PDF_ENDPOINT || "http://127.0.0.1:5001/delete-pdf");
