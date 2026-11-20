@@ -1,12 +1,10 @@
 "use client";
 import "core-js/proposals/promise-with-resolvers";
 import { useUser } from "@clerk/nextjs";
-import { Button } from "../ui/button";
 import { useEffect, useState } from "react";
 // import PdfView from "./PdfView";
 import PdfListView from "./PdfListView";
 import FileUploader from "./FileUploader";
-import InformationalBanner from "./InformationalBanner";
 import Header from "./Header";
 import dynamic from "next/dynamic";
 
@@ -150,22 +148,14 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
         }
     }
 
-    return (<div className="min-h-screen bg-black text-white">
-        {/* Top Banner */}
-        <InformationalBanner />
-        
+    return (<div className="min-h-screen bg-background text-foreground">
         <div className="flex flex-col max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <Header popUpActive={popUpActive} setPdfView={setPdfView} />
             {(!pdfFile || !pdfView) ? (
                 <div className="space-y-8">
                     <FileUploader setPopUpActive={setPopUpActive} uploadPdf={uploadPdf} uploadPdfMetadata={uploadPdfMetadata} setPdfFile={setPdfFile} setPdfName={setPdfName} setPagesText={setPagesText} userPdfs={userPdfs} setPdfView={setPdfView} setUserPdfs={setUserPdfs} />
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-semibold">PDF Selection</h2>
-                            <Button variant="ghost" className="text-zinc-400 hover:text-white">
-                            View all
-                            </Button>
-                        </div>
+                        <h2 className="font-serif text-3xl font-normal">Your library</h2>
                         <PdfListView userPdfs={userPdfs} isLoadingPdfs={isLoadingPdfs} isLoaded={isLoaded} isDeleteDialogOpen={isDeleteDialogOpen} setIsDeleteDialogOpen={setIsDeleteDialogOpen} setPdfFile={setPdfFile} setPagesText={setPagesText} setNumPages={setNumPages} setPdfName={setPdfName} setPageNumber={setPageNumber} setPdfView={setPdfView} deleteOnClick={deleteOnClick} />
                     </div>
                 </div>
