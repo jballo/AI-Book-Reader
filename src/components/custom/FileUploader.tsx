@@ -1,6 +1,6 @@
 "use client";
 import { motion } from "framer-motion";
-import { Shuffle } from "lucide-react";
+import { FileUp } from "lucide-react";
 import { Button } from "../ui/button";
 import { useRef, useState } from "react";
 import { useUser } from "@clerk/nextjs";
@@ -183,7 +183,7 @@ export default function FileUploader({ setPopUpActive, uploadPdf, uploadPdfMetad
     return(
         <motion.div
             className={`border-2 border-dashed rounded-2xl p-12 transition-all duration-300 ease-in-out ${
-                isDragging ? "border-[#C1FF7A] bg-[#C1FF7A] bg-opacity-5" : "border-zinc-800 hover:border-zinc-700"
+                isDragging ? "border-highlight bg-highlight/5" : "border-border hover:border-zinc-600"
             }`}
             onDragEnter={handleDragEnter}
             onDragOver={handleDragOver}
@@ -193,13 +193,13 @@ export default function FileUploader({ setPopUpActive, uploadPdf, uploadPdfMetad
             whileTap={{ scale: 0.99 }}
         >
             <div className="text-center">
-                <Shuffle className="mx-auto h-12 w-12 text-zinc-500" />
-                <h2 className="mt-6 text-2xl font-semibold">Upload your PDF</h2>
-                <p className="mt-2 text-zinc-400">Drag and drop your file here, or click to select</p>
+                <FileUp className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h2 className="mt-6 font-serif text-3xl font-normal">Upload your PDF</h2>
+                <p className="mt-2 text-muted-foreground">Drag and drop your file here, or click to select</p>
                 <input ref={fileInputRef} type="file" accept=".pdf" className="sr-only" onChange={onFileChange} />
                 <Button
                     onClick={() => fileInputRef.current?.click()}
-                    className="mt-6 bg-[#C1FF7A] text-black hover:bg-[#B1EF6A] transition-colors"
+                    className="mt-6 rounded-full bg-highlight px-6 text-highlight-foreground transition-colors hover:bg-highlight/90"
                 >
                     Select PDF file
                 </Button>
