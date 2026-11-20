@@ -31,7 +31,6 @@ interface PdfProps {
         pdf: FormData
     ) => Promise<{ success: boolean; response?: UploadedPDF; error?: string; }>;
     uploadPdfMetadata: (
-        userId: string,
         pdf_key: string,
         pdf_name: string,
         pdf_url: string,
@@ -142,7 +141,6 @@ export default function FileUploader({ setPopUpActive, uploadPdf, uploadPdfMetad
             console.log("pdfText: ", pdfText);
 
            await uploadPdfMetadata(
-                user.id,
                 pdfKey,
                 pdfName,
                 pdfUrl,

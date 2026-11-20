@@ -1,7 +1,13 @@
 "use server";
+import { auth } from "@clerk/nextjs/server";
 // import { NextResponse } from "next/server";
 
+const UNAUTHORIZED = { success: false, error: "Unauthorized" } as const;
+
 export async function UploadPdf(formData: FormData) {
+    const { userId } = await auth();
+    if (!userId) return UNAUTHORIZED;
+
     // const file: File | null = formData.get('pdf') as unknown as File;
 
     try {
@@ -54,13 +60,15 @@ export async function UploadPdf(formData: FormData) {
 }
 
 export async function UploadPdfMetadata(
-    userId: string,
     pdf_key: string,
     pdf_name: string,
     pdf_url: string,
     pdf_text: string[]
 ) {
-    console.log("userId: ", userId);
+    const { userId, getToken } = await auth();
+    const sessionToken = userId ? await getToken() : null;
+    if (!sessionToken) return UNAUTHORIZED;
+
     console.log("pdf_key: ", pdf_key);
     console.log("pdf_name: ", pdf_name);
     console.log("pdf_url: ", pdf_url);
@@ -73,8 +81,9 @@ export async function UploadPdfMetadata(
             headers: {
                 "Content-Type": "application/json",
                 "X-API-KEY": process.env.API_KEY || "",
+                "Authorization": `Bearer ${sessionToken}`,
             }, 
-            body: JSON.stringify({ userId, pdf_key, pdf_name, pdf_url, pdf_text })
+            body: JSON.stringify({ pdf_key, pdf_name, pdf_url, pdf_text })
         })
 
         if(!response.ok) {
@@ -102,8 +111,11 @@ export async function UploadPdfMetadata(
 
 
 
-export async function ListPdfs(userId: string) {
-    console.log("userId: ", userId);
+export async function ListPdfs() {
+    const { userId, getToken } = await auth();
+    const sessionToken = userId ? await getToken() : null;
+    if (!sessionToken) return UNAUTHORIZED;
+
 
     try {
         const url_endpoint = new URL(process.env.LIST_PDFS_ENDPOINT || "http://127.0.0.1:5001/list-pdfs");
@@ -115,8 +127,9 @@ export async function ListPdfs(userId: string) {
             headers: {
                 "Content-Type": "application/json",
                 "X-API-KEY": process.env.API_KEY || "",
+                "Authorization": `Bearer ${sessionToken}`,
             },
-            body: JSON.stringify({ userId })
+            body: JSON.stringify({})
         });
 
         if (!response.ok) {
@@ -144,6 +157,10 @@ export async function ListPdfs(userId: string) {
 
 
 export async function DeletePdf(id: string) {
+    const { userId, getToken } = await auth();
+    const sessionToken = userId ? await getToken() : null;
+    if (!sessionToken) return UNAUTHORIZED;
+
     console.log("id: ", id);
     try {
         const url_endpoint = new URL(process.env.DELETE_PDF_ENDPOINT || "http://127.0.0.1:5001/delete-pdf");
@@ -153,6 +170,7 @@ export async function DeletePdf(id: string) {
             headers: {
                 "Content-Type": "application/json",
                 "X-API-KEY": process.env.API_KEY || "",
+                "Authorization": `Bearer ${sessionToken}`,
             },
             body: JSON.stringify({ id }),
         })
