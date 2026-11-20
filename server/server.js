@@ -11,10 +11,39 @@ import nodeFetch from "node-fetch";
 const fetch = nodeFetch;
 import { Webhook } from "svix";
 import fs from "fs";
+import { verifyToken } from "@clerk/backend";
+import { decodeJwt } from "@clerk/backend/jwt";
 
 const port = process.env.PORT || 5001;
 
 dotenv.config();
+
+const SESSION_TOKEN_CATEGORY = "cl_B7d4PD111AAA";
+const authorizedParties = (process.env.CLERK_AUTHORIZED_PARTIES || "")
+  .split(",")
+  .map((party) => party.trim())
+  .filter(Boolean);
+
+const requireUser = async (req, res, next) => {
+  const token = req.headers.authorization?.match(/^Bearer (\S+)$/)?.[1];
+  try {
+    if (!token || decodeJwt(token).header.cat !== SESSION_TOKEN_CATEGORY) {
+      throw new Error("Not a session token");
+    }
+    const claims = await verifyToken(token, {
+      jwtKey: process.env.CLERK_JWT_KEY,
+      authorizedParties,
+    });
+    if (claims.sts === "pending" || !claims.sid || !claims.sub) {
+      throw new Error("Session is not active");
+    }
+    req.userId = claims.sub;
+  } catch (error) {
+    console.error("Session token rejected: ", error?.reason || error?.message);
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  next();
+};
 
 app.use(cors());
 
@@ -176,7 +205,7 @@ app.post("/upload-pdf", upload.single("pdf"), async (req, res) => {
   }
 });
 
-app.post("/upload-pdf-metadata", express.json(), async (req, res) => {
+app.post("/upload-pdf-metadata", express.json(), requireUser, async (req, res) => {
   console.log("\n\n------------ upload-pdf-metadata ------------\n\n");
 
   const apiKey = req.headers["x-api-key"];
@@ -190,7 +219,8 @@ app.post("/upload-pdf-metadata", express.json(), async (req, res) => {
   }
   const client = await pool.connect();
   try {
-    const { userId, pdf_key, pdf_name, pdf_url, pdf_text } = req.body;
+    const { pdf_key, pdf_name, pdf_url, pdf_text } = req.body;
+    const userId = req.userId;
     console.log("userId: ", userId);
     console.log("req body: ", req.body);
     // Sanitize the pdf_text array to remove null bytes from each string
@@ -307,7 +337,7 @@ app.post("/text-to-speech", express.json(), async (req, res) => {
   }
 });
 
-app.post("/list-pdfs", express.json(), async (req, res) => {
+app.post("/list-pdfs", express.json(), requireUser, async (req, res) => {
   const apiKey = req.headers["x-api-key"];
   if (apiKey !== process.env.API_KEY) {
     res.status(401).json({
@@ -320,7 +350,7 @@ app.post("/list-pdfs", express.json(), async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const { userId } = req.body;
+    const userId = req.userId;
     console.log("userId: ", userId);
 
     const pdfListQuery = `
@@ -346,7 +376,7 @@ app.post("/list-pdfs", express.json(), async (req, res) => {
   }
 });
 
-app.post("/delete-pdf", express.json(), async (req, res) => {
+app.post("/delete-pdf", express.json(), requireUser, async (req, res) => {
   const apiKey = req.headers["x-api-key"];
   if (apiKey !== process.env.API_KEY) {
     res.status(401).json({
@@ -361,16 +391,23 @@ app.post("/delete-pdf", express.json(), async (req, res) => {
 
   try {
     const { id } = req.body;
+    const userId = req.userId;
     console.log("id: ", id);
 
     const deletePdfQuery = `
     DELETE FROM pdfs
-    WHERE id = $1;
+    WHERE id = $1 AND uploader = $2;
     `;
-    const values = [id];
+    const values = [id, userId];
 
     const dbResponse = await client.query(deletePdfQuery, values);
     console.log("dbResponse: ", dbResponse);
+
+    if (dbResponse.rowCount === 0) {
+      return res.status(404).json({
+        error: "PDF not found.",
+      });
+    }
 
     const uploadthingResponse = await utapi.deleteFiles(id);
 

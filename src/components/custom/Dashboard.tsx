@@ -39,15 +39,12 @@ interface PdfProps {
         pdf: FormData
     ) => Promise<{ success: boolean; response?: UploadedPDF; error?: string; }>;
     uploadPdfMetadata: (
-        userId: string,
         pdf_key: string,
         pdf_name: string,
         pdf_url: string,
         pdf_text: string[]
     ) => Promise<{ success: boolean; response?: boolean; error?: string; }>;
-    listPdfs: (
-        userId: string,
-    ) => Promise<{ success: boolean; response?: ListedPDF[]; error?: string; }>;
+    listPdfs: () => Promise<{ success: boolean; response?: ListedPDF[]; error?: string; }>;
     deletePdf: (
         id: string,
     ) => Promise<{ success: boolean; response?: string; error?: string }>;
@@ -99,7 +96,7 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
         setIsLoadingPdfs(true);
 
         try {
-            const response = await listPdfs(userId);
+            const response = await listPdfs();
             if(response.success && response.response && response.response.length > 0){
                     setUserPdfs(response.response);
             } else {

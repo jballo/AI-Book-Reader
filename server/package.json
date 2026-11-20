@@ -12,6 +12,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@clerk/backend": "3.26.6",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.22.3",
@@ -23,6 +24,9 @@
   },
   "overrides": {
     "effect": "^3.22.5",
-    "@effect/platform": "^0.97.2"
+    "@effect/platform": "^0.97.2",
+    "@clerk/shared": "4.44.0",
+    "standardwebhooks": "1.1.1",
+    "@tanstack/query-core": "5.106.0"
   }
 }

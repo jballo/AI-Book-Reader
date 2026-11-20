@@ -73,11 +73,17 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
       ELEVENLABS_VOICE_ID=your_elevenlabs_voice_id
       ELEVENLABS_MODEL_ID=eleven_multilingual_v2 # optional, e.g. eleven_flash_v2_5 for lower latency
       CLERK_WEBHOOK_SECRET=your_clerk_webhook_secret
+      CLERK_JWT_KEY="-----BEGIN PUBLIC KEY-----
+      ...
+      -----END PUBLIC KEY-----"
+      CLERK_AUTHORIZED_PARTIES=http://localhost:3000 # comma-separated origins of the Next.js app
       ```
 
   **Important Notes:**
     *   Replace `your_clerk_publishable_key`, `your_clerk_secret_key`, `your_api_secret`, `your_api_key`, `your_postgres_*`, `your_uploadthing_token`, `your_elevenlabs_api_key`, `your_elevenlabs_voice_id`, and `your_clerk_webhook_secret` with your actual credentials.
     *   The `CLERK_WEBHOOK_SECRET` is crucial for verifying Clerk webhooks. You can find this in your Clerk dashboard under Webhooks.
+    *   `CLERK_JWT_KEY` is the PEM public key from the Clerk dashboard under API keys → JWT public key. The server uses it to verify each request's Clerk session token locally, without calling Clerk. Keep it multi-line inside double quotes.
+    *   `CLERK_AUTHORIZED_PARTIES` lists the origins allowed to issue session tokens (the token's `azp` claim), for example `http://localhost:3000,https://your-domain.com`.
 
 4.  **Set up ngrok**
 

@@ -1,10 +1,16 @@
 'use server'
+import { auth } from '@clerk/nextjs/server';
 
 export async function convertTextToSpeech(text: string): Promise<{
   audioUrl: string;
   success: boolean;
   error?: string;
 }> {
+  const { userId } = await auth();
+  if (!userId) {
+    return { audioUrl: '', success: false, error: 'Unauthorized' };
+  }
+
   try {
     console.log(`Converting text (${text.length} chars) to speech...`);
     
