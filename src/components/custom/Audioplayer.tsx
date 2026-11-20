@@ -145,6 +145,10 @@ export default function AudioPlayer({
                     onTimeUpdate={(event) => setElapsed(event.currentTarget.currentTime)}
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}
+                    onError={() => {
+                        setIsPlaying(false);
+                        setAudio({ status: "error" });
+                    }}
                     onEnded={() => {
                         setIsPlaying(false);
                         onEnded();
