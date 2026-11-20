@@ -1,16 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  experimental: {
-    turbo: {
-      resolveAlias: {
-        canvas: './empty-module.ts',
-      },
+  turbopack: {
+    resolveAlias: {
+      canvas: "./empty-module.ts",
     },
+  },
+  experimental: {
     serverActions: {
-      bodySizeLimit: "5000mb"
-    }
+      bodySizeLimit: "5000mb",
+    },
   },
 };
 
