@@ -5,8 +5,9 @@ import { auth } from "@clerk/nextjs/server";
 const UNAUTHORIZED = { success: false, error: "Unauthorized" } as const;
 
 export async function UploadPdf(formData: FormData) {
-    const { userId } = await auth();
-    if (!userId) return UNAUTHORIZED;
+    const { userId, getToken } = await auth();
+    const sessionToken = userId ? await getToken() : null;
+    if (!sessionToken) return UNAUTHORIZED;
 
     // const file: File | null = formData.get('pdf') as unknown as File;
 
@@ -28,6 +29,7 @@ export async function UploadPdf(formData: FormData) {
             method: "POST",
             headers: {
                 "X-API-KEY": process.env.API_KEY || "",
+                "Authorization": `Bearer ${sessionToken}`,
             },
             body: serverFormData,
         });

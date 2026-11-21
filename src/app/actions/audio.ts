@@ -6,8 +6,9 @@ export async function convertTextToSpeech(text: string): Promise<{
   success: boolean;
   error?: string;
 }> {
-  const { userId } = await auth();
-  if (!userId) {
+  const { userId, getToken } = await auth();
+  const sessionToken = userId ? await getToken() : null;
+  if (!sessionToken) {
     return { audioUrl: '', success: false, error: 'Unauthorized' };
   }
 
@@ -26,6 +27,7 @@ export async function convertTextToSpeech(text: string): Promise<{
       headers: {
         'Content-Type': 'application/json',
         'X-API-KEY': process.env.API_KEY || '',
+        'Authorization': `Bearer ${sessionToken}`,
       },
       body: JSON.stringify({ text }),
       signal: controller.signal
