@@ -73,7 +73,7 @@ app.get("/", (req, res) => {
   res.send("Hello PlayAI!");
 });
 
-app.post("/upload-pdf", upload.single("pdf"), async (req, res) => {
+app.post("/upload-pdf", requireUser, upload.single("pdf"), async (req, res) => {
   console.log("\n\n------------ upload-pdf ------------\n\n");
 
   const apiKey = req.headers["x-api-key"];
@@ -165,7 +165,7 @@ app.post("/upload-pdf-metadata", express.json(), requireUser, async (req, res) =
   }
 });
 
-app.post("/text-to-speech", express.json(), async (req, res) => {
+app.post("/text-to-speech", requireUser, express.json(), async (req, res) => {
   const apiKey = req.headers["x-api-key"];
   if (apiKey !== process.env.API_KEY) {
     res.status(401).json({
