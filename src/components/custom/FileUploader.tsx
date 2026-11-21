@@ -3,21 +3,23 @@ import { motion } from "framer-motion";
 import { FileUp } from "lucide-react";
 import { Button } from "../ui/button";
 import { useRef, useState } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useAuth, useUser } from "@clerk/nextjs";
 import { pdfjs } from 'react-pdf';
+import { genUploader } from "uploadthing/client";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
   import.meta.url,
 ).toString();
 
+const { uploadFiles } = genUploader({
+    url: process.env.NEXT_PUBLIC_UPLOADTHING_URL || "http://localhost:5001/api/uploadthing",
+    package: "uploadthing/client",
+});
+
 interface BasePDF {
     url: string,
     key: string,
-}
-
-interface UploadedPDF extends BasePDF{
-    type: 'uploaded';
 }
 
 interface ListedPDF extends BasePDF {
@@ -27,9 +29,6 @@ interface ListedPDF extends BasePDF {
 }
 
 interface PdfProps {
-    uploadPdf: (
-        pdf: FormData
-    ) => Promise<{ success: boolean; response?: UploadedPDF; error?: string; }>;
     uploadPdfMetadata: (
         pdf_key: string,
         pdf_name: string,
@@ -41,7 +40,6 @@ interface PdfProps {
 
 interface FileUploaderProps {
     setPopUpActive: (val: boolean) => void;
-    uploadPdf: PdfProps["uploadPdf"];
     uploadPdfMetadata: PdfProps["uploadPdfMetadata"];
     setPdfFile: (val: string) => void;
     setPdfName: (val: string) => void;
@@ -52,8 +50,9 @@ interface FileUploaderProps {
 
 }
 
-export default function FileUploader({ setPopUpActive, uploadPdf, uploadPdfMetadata, setPdfFile, setPdfName, setPagesText, userPdfs, setPdfView, setUserPdfs }: FileUploaderProps){
+export default function FileUploader({ setPopUpActive, uploadPdfMetadata, setPdfFile, setPdfName, setPagesText, userPdfs, setPdfView, setUserPdfs }: FileUploaderProps){
     const { user, isSignedIn } = useUser();
+    const { getToken } = useAuth();
     const [isDragging, setIsDragging] = useState<boolean>(false)
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -118,18 +117,20 @@ export default function FileUploader({ setPopUpActive, uploadPdf, uploadPdfMetad
         const pdfName = file.name;
             console.log("pdfName: ", pdfName);
 
-            const actionFormData = new FormData();
-            actionFormData.append("pdf", file);
+            const uploadResult = await uploadFiles("pdfUploader", {
+                files: [file],
+                headers: async () => ({ Authorization: `Bearer ${await getToken()}` }),
+            }).catch((error) => {
+                console.error("PDF upload failed: ", error);
+                return null;
+            });
 
-            const uploadpdf_response = await uploadPdf(actionFormData);
-
-            if (!uploadpdf_response.success){
-                console.error("PDF upload failed");
+            if (!uploadResult){
                 return;
             }
-            
-            const pdfUrl = uploadpdf_response.response?.url || "";
-            const pdfKey = uploadpdf_response.response?.key || "";
+
+            const pdfUrl = uploadResult[0]?.ufsUrl || "";
+            const pdfKey = uploadResult[0]?.key || "";
             setPdfFile(pdfUrl);
             setPdfName(pdfName);
 

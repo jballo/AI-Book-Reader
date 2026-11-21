@@ -4,63 +4,6 @@ import { auth } from "@clerk/nextjs/server";
 
 const UNAUTHORIZED = { success: false, error: "Unauthorized" } as const;
 
-export async function UploadPdf(formData: FormData) {
-    const { userId, getToken } = await auth();
-    const sessionToken = userId ? await getToken() : null;
-    if (!sessionToken) return UNAUTHORIZED;
-
-    // const file: File | null = formData.get('pdf') as unknown as File;
-
-    try {
-        const file: File | null = formData.get('pdf') as File;
-
-        console.log("file: ", file);
-
-        if (!file) {
-            throw new Error(`No file uploaded`);
-        }
-
-        const url_endpoint = new URL(process.env.UPLOAD_PDF_ENDPOINT || "http://127.0.0.1:5001/upload-pdf");
-
-        const serverFormData = new FormData();
-        serverFormData.append('pdf', file);
-
-        const response = await fetch(url_endpoint, {
-            method: "POST",
-            headers: {
-                "X-API-KEY": process.env.API_KEY || "",
-                "Authorization": `Bearer ${sessionToken}`,
-            },
-            body: serverFormData,
-        });
-
-        if (!response.ok) {
-            throw new Error(`Failed to upload pdf`);
-        }
-
-        const result = await response.json();
-        console.log("Result: ", result);
-
-        // return NextResponse.json({
-        //     success: true,
-        //     response: result.content
-        // });
-        return {
-            success: true,
-            response: result.content
-        }
-
-    } catch (error) {
-        console.error("Error: ", error);
-        return {
-            success: false,
-            error:
-                error instanceof Error ? error.message : "Failed to upload pdf to uploathing.",
-        }
-    }
-    
-}
-
 export async function UploadPdfMetadata(
     pdf_key: string,
     pdf_name: string,

@@ -18,10 +18,6 @@ interface BasePDF {
     key: string,
 }
 
-interface UploadedPDF extends BasePDF{
-    type: 'uploaded';
-}
-
 interface ListedPDF extends BasePDF {
     type: 'listed';
     name: string;
@@ -33,9 +29,6 @@ interface ListedPDF extends BasePDF {
 
 
 interface PdfProps {
-    uploadPdf: (
-        pdf: FormData
-    ) => Promise<{ success: boolean; response?: UploadedPDF; error?: string; }>;
     uploadPdfMetadata: (
         pdf_key: string,
         pdf_name: string,
@@ -60,7 +53,6 @@ interface AudioProps {
 
 
 interface DashboardProps {
-    uploadPdf: PdfProps["uploadPdf"];
     uploadPdfMetadata: PdfProps["uploadPdfMetadata"];
     listPdfs: PdfProps["listPdfs"];
     convertTextToSpeech: AudioProps["convertTextToSpeech"];
@@ -68,7 +60,7 @@ interface DashboardProps {
 }
 
 
-export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, convertTextToSpeech, deletePdf }: DashboardProps){
+export default function Dashboard({ uploadPdfMetadata, listPdfs, convertTextToSpeech, deletePdf }: DashboardProps){
     const { user, isSignedIn, isLoaded } = useUser();
     const [numPages, setNumPages] = useState<number>();
     const [pageNumber, setPageNumber] = useState<number>();
@@ -156,7 +148,7 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
         <div className="flex flex-col max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <Header popUpActive={popUpActive} setPdfView={setPdfView} />
             <div className="space-y-8">
-                <FileUploader setPopUpActive={setPopUpActive} uploadPdf={uploadPdf} uploadPdfMetadata={uploadPdfMetadata} setPdfFile={setPdfFile} setPdfName={setPdfName} setPagesText={setPagesText} userPdfs={userPdfs} setPdfView={setPdfView} setUserPdfs={setUserPdfs} />
+                <FileUploader setPopUpActive={setPopUpActive} uploadPdfMetadata={uploadPdfMetadata} setPdfFile={setPdfFile} setPdfName={setPdfName} setPagesText={setPagesText} userPdfs={userPdfs} setPdfView={setPdfView} setUserPdfs={setUserPdfs} />
                 <div className="space-y-4">
                     <h2 className="font-serif text-3xl font-normal">Your library</h2>
                     <PdfListView userPdfs={userPdfs} isLoadingPdfs={isLoadingPdfs} isLoaded={isLoaded} isDeleteDialogOpen={isDeleteDialogOpen} setIsDeleteDialogOpen={setIsDeleteDialogOpen} setPdfFile={setPdfFile} setPagesText={setPagesText} setNumPages={setNumPages} setPdfName={setPdfName} setPageNumber={setPageNumber} setPdfView={setPdfView} deleteOnClick={deleteOnClick} />

@@ -6,11 +6,6 @@ const nextConfig: NextConfig = {
       canvas: "./empty-module.ts",
     },
   },
-  experimental: {
-    serverActions: {
-      bodySizeLimit: "5000mb",
-    },
-  },
 };
 
 export default nextConfig;
