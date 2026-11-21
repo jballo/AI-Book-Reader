@@ -4,9 +4,10 @@ const { Pool } = pkg;
 import dotenv from "dotenv";
 const app = express();
 import cors from "cors";
-import multer from "multer";
 import * as uploadthingServer from "uploadthing/server";
-const { UTApi } = uploadthingServer;
+const { UTApi, UploadThingError, createUploadthing, createRouteHandler } = uploadthingServer;
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import nodeFetch from "node-fetch";
 const fetch = nodeFetch;
 import { Webhook } from "svix";
@@ -24,20 +25,24 @@ const authorizedParties = (process.env.CLERK_AUTHORIZED_PARTIES || "")
   .map((party) => party.trim())
   .filter(Boolean);
 
+const verifySessionToken = async (authorization) => {
+  const token = authorization?.match(/^Bearer (\S+)$/)?.[1];
+  if (!token || decodeJwt(token).header.cat !== SESSION_TOKEN_CATEGORY) {
+    throw new Error("Not a session token");
+  }
+  const claims = await verifyToken(token, {
+    jwtKey: process.env.CLERK_JWT_KEY,
+    authorizedParties,
+  });
+  if (claims.sts === "pending" || !claims.sid || !claims.sub) {
+    throw new Error("Session is not active");
+  }
+  return claims.sub;
+};
+
 const requireUser = async (req, res, next) => {
-  const token = req.headers.authorization?.match(/^Bearer (\S+)$/)?.[1];
   try {
-    if (!token || decodeJwt(token).header.cat !== SESSION_TOKEN_CATEGORY) {
-      throw new Error("Not a session token");
-    }
-    const claims = await verifyToken(token, {
-      jwtKey: process.env.CLERK_JWT_KEY,
-      authorizedParties,
-    });
-    if (claims.sts === "pending" || !claims.sid || !claims.sub) {
-      throw new Error("Session is not active");
-    }
-    req.userId = claims.sub;
+    req.userId = await verifySessionToken(req.headers.authorization);
   } catch (error) {
     console.error("Session token rejected: ", error?.reason || error?.message);
     return res.status(401).json({ error: "Unauthorized" });
@@ -51,8 +56,47 @@ const utapi = new UTApi({
   token: process.env.UPLOADTHING_TOKEN,
 });
 
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+const f = createUploadthing();
+
+const uploadRouter = {
+  pdfUploader: f({ pdf: { maxFileSize: "4MB", maxFileCount: 1 } })
+    .middleware(async ({ req }) => {
+      try {
+        return { userId: await verifySessionToken(req.headers.get("authorization")) };
+      } catch (error) {
+        console.error("Session token rejected: ", error?.reason || error?.message);
+        throw new UploadThingError({ code: "FORBIDDEN", message: "Unauthorized" });
+      }
+    })
+    .onUploadComplete(({ metadata, file }) => {
+      console.log("Upload complete: ", { userId: metadata.userId, key: file.key });
+    }),
+};
+
+const handleUploadthing = createRouteHandler({ router: uploadRouter });
+
+app.all("/api/uploadthing", express.text({ type: "*/*" }), async (req, res) => {
+  try {
+    const proto = req.headers["x-forwarded-proto"] ?? "http";
+    const host = req.headers["x-forwarded-host"] ?? req.headers.host;
+    const headers = new Headers();
+    for (const [key, value] of Object.entries(req.headers)) {
+      headers.set(key, Array.isArray(value) ? value.join(",") : value);
+    }
+    const request = new Request(new URL(req.originalUrl, `${proto}://${host}`), {
+      method: req.method,
+      headers,
+      body: ["POST", "PUT", "PATCH"].includes(req.method) && typeof req.body === "string" ? req.body : undefined,
+    });
+    const response = await handleUploadthing(request);
+    res.writeHead(response.status, Object.fromEntries(response.headers));
+    if (response.body) await pipeline(Readable.fromWeb(response.body), res);
+    else res.end();
+  } catch (error) {
+    console.error("UploadThing request failed: ", error?.message);
+    if (!res.headersSent) res.status(400).json({ error: "Bad request" });
+  }
+});
 
 const { PGHOST, PGDATABASE, PGUSER, PGPASSWORD, PGSSLROOTCERT } = process.env;
 
@@ -71,58 +115,6 @@ pool.on("error", (err) => {
 
 app.get("/", (req, res) => {
   res.send("Hello PlayAI!");
-});
-
-app.post("/upload-pdf", requireUser, upload.single("pdf"), async (req, res) => {
-  console.log("\n\n------------ upload-pdf ------------\n\n");
-
-  const apiKey = req.headers["x-api-key"];
-  if (apiKey !== process.env.API_KEY) {
-    res.status(401).json({
-      error: "Unauthorized",
-    });
-    return;
-  } else {
-    console.log("Authorized");
-  }
-
-  if (!req.file) {
-    return res.status(400).json({
-      error: "No pdf file provided.",
-    });
-  }
-
-  try {
-    const fileData = new File([req.file.buffer], req.file.originalname, {
-      type: req.file.mimetype,
-    });
-
-    const [result] = await utapi.uploadFiles([fileData]);
-
-    if (!result?.data) {
-      const reason = result?.error?.message || "Unknown UploadThing error";
-      console.error("UploadThing upload failed: ", result?.error);
-      return res.status(502).json({
-        error: `Failed to upload pdf to uploadthing: ${reason}`,
-      });
-    }
-
-    const response_body = {
-      url: result.data.ufsUrl,
-      key: result.data.key,
-    };
-
-    console.log("response_body: ", response_body);
-
-    res.status(200).json({
-      content: response_body,
-    });
-  } catch (error) {
-    console.log("Error: ", error);
-    res.status(500).json({
-      error: `Failed to upload pdf to uploadthing.`,
-    });
-  }
 });
 
 app.post("/upload-pdf-metadata", express.json(), requireUser, async (req, res) => {
