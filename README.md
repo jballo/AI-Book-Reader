@@ -79,6 +79,7 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
       ...
       -----END PUBLIC KEY-----"
       CLERK_AUTHORIZED_PARTIES=http://localhost:3000 # comma-separated origins of the Next.js app
+      CORS_ORIGINS=http://localhost:3000 # comma-separated origins allowed to call the server from a browser
       ```
 
   **Important Notes:**
@@ -86,6 +87,7 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
     *   The `CLERK_WEBHOOK_SECRET` is crucial for verifying Clerk webhooks. You can find this in your Clerk dashboard under Webhooks.
     *   `CLERK_JWT_KEY` is the PEM public key from the Clerk dashboard under API keys → JWT public key. The server uses it to verify each request's Clerk session token locally, without calling Clerk. Keep it multi-line inside double quotes.
     *   `CLERK_AUTHORIZED_PARTIES` lists the origins allowed to issue session tokens (the token's `azp` claim), for example `http://localhost:3000,https://your-domain.com`.
+    *   `CORS_ORIGINS` lists the exact origins (scheme, host and port, no trailing slash) whose pages may call the server from the browser, such as the PDF upload to `/api/uploadthing`. Requests from any other origin get no `Access-Control-Allow-Origin` header, so the browser blocks them from reading the response. Leaving it empty allows no browser origin. It usually holds the same values as `CLERK_AUTHORIZED_PARTIES` but is set separately.
     *   PDFs upload from the browser straight to UploadThing through the server's `/api/uploadthing` route. `UPLOADTHING_IS_DEV=true` lets UploadThing report finished uploads back to a local server without a public URL. In production, UploadThing calls that route over the internet; if it can't work out the server's public URL from the request, set `UPLOADTHING_CALLBACK_URL=https://your-server-domain/api/uploadthing`.
 
 4.  **Set up ngrok**

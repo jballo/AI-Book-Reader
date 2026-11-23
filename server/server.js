@@ -20,10 +20,13 @@ const port = process.env.PORT || 5001;
 dotenv.config();
 
 const SESSION_TOKEN_CATEGORY = "cl_B7d4PD111AAA";
-const authorizedParties = (process.env.CLERK_AUTHORIZED_PARTIES || "")
-  .split(",")
-  .map((party) => party.trim())
-  .filter(Boolean);
+const parseOrigins = (value) =>
+  (value || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+const authorizedParties = parseOrigins(process.env.CLERK_AUTHORIZED_PARTIES);
+const corsOrigins = parseOrigins(process.env.CORS_ORIGINS);
 
 const verifySessionToken = async (authorization) => {
   const token = authorization?.match(/^Bearer (\S+)$/)?.[1];
@@ -50,7 +53,7 @@ const requireUser = async (req, res, next) => {
   next();
 };
 
-app.use(cors());
+app.use(cors({ origin: corsOrigins }));
 
 const utapi = new UTApi({
   token: process.env.UPLOADTHING_TOKEN,
