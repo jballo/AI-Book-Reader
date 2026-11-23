@@ -52,7 +52,6 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
       CLERK_SECRET_KEY=your_clerk_secret_key
       NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
       NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
-      API_KEY=your_api_key # Generate with 'uuidgen' and keep consistent with server/.env
       NEXT_PUBLIC_UPLOADTHING_URL=http://localhost:5001/api/uploadthing # the server's UploadThing route
       ```
 
@@ -65,8 +64,6 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
       PGDATABASE=your_postgres_database
       PGPASSWORD=your_postgres_password
       PGSSLROOTCERT=./your_provider_ca.crt # optional: CA certificate for providers with a private root (e.g. Supabase, AWS RDS)
-
-      API_KEY=your_api_key # Generate with 'uuidgen' and keep consistent with .env.local
 
       UPLOADTHING_TOKEN=your_uploadthing_token
       UPLOADTHING_IS_DEV=true # local development only; remove in production
@@ -83,7 +80,7 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
       ```
 
   **Important Notes:**
-    *   Replace `your_clerk_publishable_key`, `your_clerk_secret_key`, `your_api_secret`, `your_api_key`, `your_postgres_*`, `your_uploadthing_token`, `your_elevenlabs_api_key`, `your_elevenlabs_voice_id`, and `your_clerk_webhook_secret` with your actual credentials.
+    *   Replace `your_clerk_publishable_key`, `your_clerk_secret_key`, `your_api_secret`, `your_postgres_*`, `your_uploadthing_token`, `your_elevenlabs_api_key`, `your_elevenlabs_voice_id`, and `your_clerk_webhook_secret` with your actual credentials.
     *   The `CLERK_WEBHOOK_SECRET` is crucial for verifying Clerk webhooks. You can find this in your Clerk dashboard under Webhooks.
     *   `CLERK_JWT_KEY` is the PEM public key from the Clerk dashboard under API keys → JWT public key. The server uses it to verify each request's Clerk session token locally, without calling Clerk. Keep it multi-line inside double quotes.
     *   `CLERK_AUTHORIZED_PARTIES` lists the origins allowed to issue session tokens (the token's `azp` claim), for example `http://localhost:3000,https://your-domain.com`.
