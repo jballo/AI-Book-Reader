@@ -77,6 +77,10 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
       -----END PUBLIC KEY-----"
       CLERK_AUTHORIZED_PARTIES=http://localhost:3000 # comma-separated origins of the Next.js app
       CORS_ORIGINS=http://localhost:3000 # comma-separated origins allowed to call the server from a browser
+
+      REDIS_URL=redis://localhost:6379
+      TTS_MAX_CHARS=5000 # optional: longest text accepted per text-to-speech request
+      TTS_DAILY_CHAR_BUDGET=20000 # optional: text-to-speech characters each user may convert per UTC day
       ```
 
   **Important Notes:**
@@ -86,6 +90,8 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
     *   `CLERK_AUTHORIZED_PARTIES` lists the origins allowed to issue session tokens (the token's `azp` claim), for example `http://localhost:3000,https://your-domain.com`.
     *   `CORS_ORIGINS` lists the exact origins (scheme, host and port, no trailing slash) whose pages may call the server from the browser, such as the PDF upload to `/api/uploadthing`. Requests from any other origin get no `Access-Control-Allow-Origin` header, so the browser blocks them from reading the response. Leaving it empty allows no browser origin. It usually holds the same values as `CLERK_AUTHORIZED_PARTIES` but is set separately.
     *   PDFs upload from the browser straight to UploadThing through the server's `/api/uploadthing` route. `UPLOADTHING_IS_DEV=true` lets UploadThing report finished uploads back to a local server without a public URL. In production, UploadThing calls that route over the internet; if it can't work out the server's public URL from the request, set `UPLOADTHING_CALLBACK_URL=https://your-server-domain/api/uploadthing`.
+    *   `REDIS_URL` points at the Redis that holds the per-user rate limits and daily text-to-speech budgets, so every server instance shares one count. The server won't start if it can't connect. For local development, run one with `docker run -d -p 6379:6379 redis`.
+    *   If Redis goes down while the server is running, text-to-speech, PDF uploads and saving PDF details return 503 until it's back. Listing and deleting PDFs keep working without limits.
 
 4.  **Set up ngrok**
 
