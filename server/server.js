@@ -46,6 +46,15 @@ const TTS_MAX_CHARS = Number(process.env.TTS_MAX_CHARS) || 5000;
 const TTS_DAILY_CHAR_BUDGET = Number(process.env.TTS_DAILY_CHAR_BUDGET) || 20000;
 const TTS_BUDGET_TTL_SECONDS = 2 * 24 * 60 * 60;
 const SERVICE_UNAVAILABLE = "Service temporarily unavailable. Try again shortly.";
+const REDIS_REPLY_TIMEOUT_MS = 1000;
+
+const withRedisTimeout = (command) => {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error("Redis did not reply in time")), REDIS_REPLY_TIMEOUT_MS);
+  });
+  return Promise.race([command, timeout]).finally(() => clearTimeout(timer));
+};
 
 const pluralize = (count, unit) => `${count} ${unit}${count === 1 ? "" : "s"}`;
 
@@ -71,7 +80,7 @@ const createUserLimiter = ({ prefix, windowMs, limit, failOpen, skip }) => {
     }),
     store: new RedisStore({
       prefix: `rl:${prefix}:`,
-      sendCommand: (...args) => redis.sendCommand(args),
+      sendCommand: (...args) => withRedisTimeout(redis.sendCommand(args)),
     }),
   });
   return (req, res, next) =>
@@ -239,7 +248,7 @@ app.post("/text-to-speech", requireUser, ttsLimiter, express.json(), async (req,
     if (!chargedChars) return;
     const amount = chargedChars;
     chargedChars = 0;
-    await redis.decrBy(budgetKey, amount).catch((error) => {
+    await withRedisTimeout(redis.decrBy(budgetKey, amount)).catch((error) => {
       console.error("TTS budget refund failed: ", error?.message);
     });
   };
@@ -266,16 +275,19 @@ app.post("/text-to-speech", requireUser, ttsLimiter, express.json(), async (req,
 
     let usedChars;
     try {
-      [usedChars] = await redis
-        .multi()
-        .incrBy(budgetKey, text.length)
-        .expire(budgetKey, TTS_BUDGET_TTL_SECONDS)
-        .exec();
+      await withRedisTimeout(
+        redis.set(budgetKey, 0, {
+          expiration: { type: "EX", value: TTS_BUDGET_TTL_SECONDS },
+          condition: "NX",
+        })
+      );
+      chargedChars = text.length;
+      usedChars = await withRedisTimeout(redis.incrBy(budgetKey, text.length));
     } catch (error) {
       console.error("TTS budget check failed: ", error?.message);
+      await refundBudget();
       return res.status(503).json({ error: SERVICE_UNAVAILABLE });
     }
-    chargedChars = text.length;
 
     if (usedChars > TTS_DAILY_CHAR_BUDGET) {
       await refundBudget();
