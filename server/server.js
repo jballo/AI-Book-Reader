@@ -14,10 +14,84 @@ import { Webhook } from "svix";
 import fs from "fs";
 import { verifyToken } from "@clerk/backend";
 import { decodeJwt } from "@clerk/backend/jwt";
+import { createClient } from "redis";
+import { rateLimit } from "express-rate-limit";
+import { RedisStore } from "rate-limit-redis";
 
 const port = process.env.PORT || 5001;
 
 dotenv.config();
+
+let redisConnected = false;
+const redis = createClient({
+  url: process.env.REDIS_URL,
+  disableOfflineQueue: true,
+  socket: {
+    reconnectStrategy: (retries, cause) => (redisConnected ? Math.min(retries * 100, 3000) : cause),
+  },
+});
+redis.on("error", (error) => {
+  console.error("Redis error: ", error?.message || error?.code);
+});
+
+try {
+  await redis.connect();
+  redisConnected = true;
+} catch {
+  console.error("Failed to connect to Redis. Check REDIS_URL.");
+  process.exit(1);
+}
+
+const TTS_MAX_CHARS = Number(process.env.TTS_MAX_CHARS) || 5000;
+const TTS_DAILY_CHAR_BUDGET = Number(process.env.TTS_DAILY_CHAR_BUDGET) || 20000;
+const TTS_BUDGET_TTL_SECONDS = 2 * 24 * 60 * 60;
+const SERVICE_UNAVAILABLE = "Service temporarily unavailable. Try again shortly.";
+
+const pluralize = (count, unit) => `${count} ${unit}${count === 1 ? "" : "s"}`;
+
+const formatWait = (seconds) => {
+  if (seconds <= 90) return pluralize(Math.max(seconds, 1), "second");
+  if (seconds <= 90 * 60) return pluralize(Math.ceil(seconds / 60), "minute");
+  return pluralize(Math.ceil(seconds / 3600), "hour");
+};
+
+const secondsUntil = (date) => Math.max(Math.ceil((date.getTime() - Date.now()) / 1000), 0);
+
+const createUserLimiter = ({ prefix, windowMs, limit, failOpen, skip }) => {
+  const limiter = rateLimit({
+    windowMs,
+    limit,
+    skip,
+    keyGenerator: (req) => req.userId,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    passOnStoreError: failOpen,
+    message: (req) => ({
+      error: `Too many requests. Try again in ${formatWait(secondsUntil(req.rateLimit.resetTime))}.`,
+    }),
+    store: new RedisStore({
+      prefix: `rl:${prefix}:`,
+      sendCommand: (...args) => redis.sendCommand(args),
+    }),
+  });
+  return (req, res, next) =>
+    limiter(req, res, (error) => {
+      if (!error) return next();
+      console.error(`Rate limiter ${prefix} failed: `, error?.message);
+      if (!res.headersSent) res.status(503).json({ error: SERVICE_UNAVAILABLE });
+    });
+};
+
+const ttsLimiter = createUserLimiter({ prefix: "tts", windowMs: 60 * 1000, limit: 10, failOpen: false });
+const uploadLimiter = createUserLimiter({
+  prefix: "upload",
+  windowMs: 10 * 60 * 1000,
+  limit: 10,
+  failOpen: false,
+  skip: (req) => !req.userId,
+});
+const metadataLimiter = createUserLimiter({ prefix: "metadata", windowMs: 10 * 60 * 1000, limit: 10, failOpen: false });
+const libraryLimiter = createUserLimiter({ prefix: "library", windowMs: 60 * 1000, limit: 60, failOpen: true });
 
 const SESSION_TOKEN_CATEGORY = "cl_B7d4PD111AAA";
 const parseOrigins = (value) =>
@@ -53,6 +127,13 @@ const requireUser = async (req, res, next) => {
   next();
 };
 
+const identifyUploader = async (req, res, next) => {
+  if (req.headers.authorization) {
+    req.userId = await verifySessionToken(req.headers.authorization).catch(() => undefined);
+  }
+  next();
+};
+
 app.use(cors({ origin: corsOrigins }));
 
 const utapi = new UTApi({
@@ -78,7 +159,7 @@ const uploadRouter = {
 
 const handleUploadthing = createRouteHandler({ router: uploadRouter });
 
-app.all("/api/uploadthing", express.text({ type: "*/*" }), async (req, res) => {
+app.all("/api/uploadthing", identifyUploader, uploadLimiter, express.text({ type: "*/*" }), async (req, res) => {
   try {
     const proto = req.headers["x-forwarded-proto"] ?? "http";
     const host = req.headers["x-forwarded-host"] ?? req.headers.host;
@@ -120,7 +201,7 @@ app.get("/", (req, res) => {
   res.send("Hello PlayAI!");
 });
 
-app.post("/upload-pdf-metadata", express.json(), requireUser, async (req, res) => {
+app.post("/upload-pdf-metadata", express.json(), requireUser, metadataLimiter, async (req, res) => {
   console.log("\n\n------------ upload-pdf-metadata ------------\n\n");
 
   const client = await pool.connect();
@@ -151,12 +232,28 @@ app.post("/upload-pdf-metadata", express.json(), requireUser, async (req, res) =
   }
 });
 
-app.post("/text-to-speech", requireUser, express.json(), async (req, res) => {
+app.post("/text-to-speech", requireUser, ttsLimiter, express.json(), async (req, res) => {
+  const budgetKey = `tts:chars:${req.userId}:${new Date().toISOString().slice(0, 10)}`;
+  let chargedChars = 0;
+  const refundBudget = async () => {
+    if (!chargedChars) return;
+    const amount = chargedChars;
+    chargedChars = 0;
+    await redis.decrBy(budgetKey, amount).catch((error) => {
+      console.error("TTS budget refund failed: ", error?.message);
+    });
+  };
+
   try {
     const { text } = req.body;
-    if (!text) {
+    if (typeof text !== "string" || !text) {
       return res.status(400).json({
         error: "No text provided",
+      });
+    }
+    if (text.length > TTS_MAX_CHARS) {
+      return res.status(400).json({
+        error: `Text is too long. The limit is ${TTS_MAX_CHARS} characters.`,
       });
     }
 
@@ -165,6 +262,30 @@ app.post("/text-to-speech", requireUser, express.json(), async (req, res) => {
     const { ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID } = process.env;
     if (!ELEVENLABS_API_KEY || !ELEVENLABS_VOICE_ID) {
       throw new Error("ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID must be set");
+    }
+
+    let usedChars;
+    try {
+      [usedChars] = await redis
+        .multi()
+        .incrBy(budgetKey, text.length)
+        .expire(budgetKey, TTS_BUDGET_TTL_SECONDS)
+        .exec();
+    } catch (error) {
+      console.error("TTS budget check failed: ", error?.message);
+      return res.status(503).json({ error: SERVICE_UNAVAILABLE });
+    }
+    chargedChars = text.length;
+
+    if (usedChars > TTS_DAILY_CHAR_BUDGET) {
+      await refundBudget();
+      const now = new Date();
+      const nextUtcDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+      const waitSeconds = secondsUntil(nextUtcDay);
+      res.setHeader("Retry-After", String(waitSeconds));
+      return res.status(429).json({
+        error: `Daily text-to-speech limit reached. Try again in ${formatWait(waitSeconds)}.`,
+      });
     }
 
     const ttsResponse = await fetch(
@@ -224,6 +345,7 @@ app.post("/text-to-speech", requireUser, express.json(), async (req, res) => {
   } catch (error) {
     console.error("Error during text-to-speech conversion:", error);
     if (!res.headersSent) {
+      await refundBudget();
       res.status(500).json({
         error: `Failed to convert text to speech: ${error.message}`,
       });
@@ -233,7 +355,7 @@ app.post("/text-to-speech", requireUser, express.json(), async (req, res) => {
   }
 });
 
-app.post("/list-pdfs", express.json(), requireUser, async (req, res) => {
+app.post("/list-pdfs", express.json(), requireUser, libraryLimiter, async (req, res) => {
   const client = await pool.connect();
 
   try {
@@ -263,7 +385,7 @@ app.post("/list-pdfs", express.json(), requireUser, async (req, res) => {
   }
 });
 
-app.post("/delete-pdf", express.json(), requireUser, async (req, res) => {
+app.post("/delete-pdf", express.json(), requireUser, libraryLimiter, async (req, res) => {
   const { id } = req.body ?? {};
   if (typeof id !== "string" || id.length === 0) {
     return res.status(400).json({
