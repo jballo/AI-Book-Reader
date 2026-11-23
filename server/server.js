@@ -123,15 +123,6 @@ app.get("/", (req, res) => {
 app.post("/upload-pdf-metadata", express.json(), requireUser, async (req, res) => {
   console.log("\n\n------------ upload-pdf-metadata ------------\n\n");
 
-  const apiKey = req.headers["x-api-key"];
-  if (apiKey !== process.env.API_KEY) {
-    res.status(401).json({
-      error: "Unauthorized",
-    });
-    return;
-  } else {
-    console.log("Authorized");
-  }
   const client = await pool.connect();
   try {
     const { pdf_key, pdf_name, pdf_url, pdf_text } = req.body;
@@ -161,16 +152,6 @@ app.post("/upload-pdf-metadata", express.json(), requireUser, async (req, res) =
 });
 
 app.post("/text-to-speech", requireUser, express.json(), async (req, res) => {
-  const apiKey = req.headers["x-api-key"];
-  if (apiKey !== process.env.API_KEY) {
-    res.status(401).json({
-      error: "Unauthorized",
-    });
-    return;
-  } else {
-    console.log("Authorized");
-  }
-
   try {
     const { text } = req.body;
     if (!text) {
@@ -253,15 +234,6 @@ app.post("/text-to-speech", requireUser, express.json(), async (req, res) => {
 });
 
 app.post("/list-pdfs", express.json(), requireUser, async (req, res) => {
-  const apiKey = req.headers["x-api-key"];
-  if (apiKey !== process.env.API_KEY) {
-    res.status(401).json({
-      error: "Unauthorized",
-    });
-    return;
-  } else {
-    console.log("Authorized");
-  }
   const client = await pool.connect();
 
   try {
@@ -292,16 +264,6 @@ app.post("/list-pdfs", express.json(), requireUser, async (req, res) => {
 });
 
 app.post("/delete-pdf", express.json(), requireUser, async (req, res) => {
-  const apiKey = req.headers["x-api-key"];
-  if (apiKey !== process.env.API_KEY) {
-    res.status(401).json({
-      error: "Unauthorized",
-    });
-    return;
-  } else {
-    console.log("Authorized");
-  }
-
   const { id } = req.body ?? {};
   if (typeof id !== "string" || id.length === 0) {
     return res.status(400).json({
