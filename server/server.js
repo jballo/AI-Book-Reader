@@ -323,10 +323,11 @@ app.post("/text-to-speech", requireUser, ttsLimiter, express.json(), async (req,
     const stream = ttsResponse.body;
 
     // Handle stream errors
-    stream.on("error", (err) => {
+    stream.on("error", async (err) => {
       console.error("Stream error:", err);
       // If we haven't sent headers yet, send an error response
       if (!res.headersSent) {
+        await refundBudget();
         res.status(500).json({
           error: `Streaming error: ${err.message}`,
         });
