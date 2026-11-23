@@ -26,7 +26,6 @@ export async function convertTextToSpeech(text: string): Promise<{
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-API-KEY': process.env.API_KEY || '',
         'Authorization': `Bearer ${sessionToken}`,
       },
       body: JSON.stringify({ text }),

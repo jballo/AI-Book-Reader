@@ -25,7 +25,6 @@ export async function UploadPdfMetadata(
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "X-API-KEY": process.env.API_KEY || "",
                 "Authorization": `Bearer ${sessionToken}`,
             }, 
             body: JSON.stringify({ pdf_key, pdf_name, pdf_url, pdf_text })
@@ -71,7 +70,6 @@ export async function ListPdfs() {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "X-API-KEY": process.env.API_KEY || "",
                 "Authorization": `Bearer ${sessionToken}`,
             },
             body: JSON.stringify({})
@@ -118,7 +116,6 @@ export async function DeletePdf(id: string) {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "X-API-KEY": process.env.API_KEY || "",
                 "Authorization": `Bearer ${sessionToken}`,
             },
             body: JSON.stringify({ id }),
