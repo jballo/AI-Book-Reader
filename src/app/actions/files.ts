@@ -4,6 +4,12 @@ import { auth } from "@clerk/nextjs/server";
 
 const UNAUTHORIZED = { success: false, error: "Unauthorized" } as const;
 
+async function failedRequestError(response: Response, fallback: string) {
+    if (response.status !== 429 && response.status !== 503) return fallback;
+    const body = await response.json().catch(() => null);
+    return typeof body?.error === "string" ? body.error : fallback;
+}
+
 export async function UploadPdfMetadata(
     pdf_key: string,
     pdf_name: string,
@@ -31,7 +37,7 @@ export async function UploadPdfMetadata(
         })
 
         if(!response.ok) {
-            throw new Error(`Failed to upload pdf metadata`);
+            throw new Error(await failedRequestError(response, "Failed to upload pdf metadata"));
         }
 
         const result = await response.json();
@@ -76,7 +82,7 @@ export async function ListPdfs() {
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to retrieve list of pdfs`);
+            throw new Error(await failedRequestError(response, "Failed to retrieve list of pdfs"));
         }
 
         const result = await response.json();
@@ -122,7 +128,7 @@ export async function DeletePdf(id: string) {
         })
 
         if (!response.ok) {
-            throw new Error("Failed to delete pdf");
+            throw new Error(await failedRequestError(response, "Failed to delete pdf"));
         }
 
         const result = await response.json();
