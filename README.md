@@ -53,6 +53,7 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
       NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
       NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
       NEXT_PUBLIC_UPLOADTHING_URL=http://localhost:5001/api/uploadthing # the server's UploadThing route
+      API_BASE_URL=http://localhost:5001 # the server's base URL, used by the server actions
       ```
 
   *   Create a `.env` file in the `server` directory with:
@@ -86,6 +87,7 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
 
   **Important Notes:**
     *   Replace `your_clerk_publishable_key`, `your_clerk_secret_key`, `your_api_secret`, `your_postgres_*`, `your_redis_url`, `your_uploadthing_token`, `your_elevenlabs_api_key`, `your_elevenlabs_voice_id`, and `your_clerk_webhook_secret` with your actual credentials.
+    *   `API_BASE_URL` is the Express server's base URL, e.g. `https://your-server-domain`. The app's server actions call it to list, save and delete PDFs and to generate speech. Under `npm run dev` it defaults to `http://127.0.0.1:5001`. A production build (`npm run build` then `npm start`, or any hosted deploy) has no default: with it unset, those actions fail with "API_BASE_URL is not set".
     *   The `CLERK_WEBHOOK_SECRET` is crucial for verifying Clerk webhooks. You can find this in your Clerk dashboard under Webhooks.
     *   `CLERK_JWT_KEY` is the PEM public key from the Clerk dashboard under API keys → JWT public key. The server uses it to verify each request's Clerk session token locally, without calling Clerk. Keep it multi-line inside double quotes.
     *   `CLERK_AUTHORIZED_PARTIES` lists the origins allowed to issue session tokens (the token's `azp` claim), for example `http://localhost:3000,https://your-domain.com`.
