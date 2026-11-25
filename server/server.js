@@ -210,7 +210,7 @@ app.get("/", (req, res) => {
   res.send("Hello PlayAI!");
 });
 
-app.post("/upload-pdf-metadata", express.json(), requireUser, metadataLimiter, async (req, res) => {
+app.post("/upload-pdf-metadata", requireUser, metadataLimiter, express.json({ limit: "5mb" }), async (req, res) => {
   console.log("\n\n------------ upload-pdf-metadata ------------\n\n");
 
   const client = await pool.connect();

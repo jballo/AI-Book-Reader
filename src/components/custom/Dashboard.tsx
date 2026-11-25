@@ -29,12 +29,12 @@ interface ListedPDF extends BasePDF {
 
 
 interface PdfProps {
-    uploadPdfMetadata: (
-        pdf_key: string,
-        pdf_name: string,
-        pdf_url: string,
-        pdf_text: string[]
-    ) => Promise<{ success: boolean; response?: boolean; error?: string; }>;
+    uploadPdfMetadata: (metadata: {
+        pdf_key: string;
+        pdf_name: string;
+        pdf_url: string;
+        pdf_text: string;
+    }) => Promise<{ success: boolean; response?: boolean; error?: string; }>;
     listPdfs: () => Promise<{ success: boolean; response?: ListedPDF[]; error?: string; }>;
     deletePdf: (
         id: string,

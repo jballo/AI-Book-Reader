@@ -10,12 +10,17 @@ async function failedRequestError(response: Response, fallback: string) {
     return typeof body?.error === "string" ? body.error : fallback;
 }
 
-export async function UploadPdfMetadata(
-    pdf_key: string,
-    pdf_name: string,
-    pdf_url: string,
-    pdf_text: string[]
-) {
+export async function UploadPdfMetadata({
+    pdf_key,
+    pdf_name,
+    pdf_url,
+    pdf_text,
+}: {
+    pdf_key: string;
+    pdf_name: string;
+    pdf_url: string;
+    pdf_text: string;
+}) {
     const { userId, getToken } = await auth();
     const sessionToken = userId ? await getToken() : null;
     if (!sessionToken) return UNAUTHORIZED;
@@ -33,7 +38,7 @@ export async function UploadPdfMetadata(
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${sessionToken}`,
             }, 
-            body: JSON.stringify({ pdf_key, pdf_name, pdf_url, pdf_text })
+            body: JSON.stringify({ pdf_key, pdf_name, pdf_url, pdf_text: JSON.parse(pdf_text) })
         })
 
         if(!response.ok) {
