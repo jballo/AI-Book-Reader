@@ -38,14 +38,15 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
 2.  **Install Dependencies**
 
     ```sh
+    cd Frontend
     npm install  # Install frontend dependencies
-    cd server
+    cd ../Backend
     npm install  # Install backend dependencies
     ```
 
 3.  **Environment Variables Setup**
   *   These environment variables are for local development. For deployment, additional variables may be required depending on the hosting provider and services used.
-  *   Create a `.env.local` file in the root directory with:
+  *   Create a `.env.local` file in the `Frontend` directory with:
 
       ```
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
@@ -56,7 +57,7 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
       API_BASE_URL=http://localhost:5001 # the server's base URL, used by the server actions
       ```
 
-  *   Create a `.env` file in the `server` directory with:
+  *   Create a `.env` file in the `Backend` directory with:
 
       ```
       PGHOST=your_postgres_host
@@ -127,16 +128,19 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
 
 6.  **Run the Application**
 
+    *   Run each app in its own terminal, starting from the repo root.
+
     *   Start the Backend:
 
         ```sh
-        cd server
+        cd Backend
         npm start
         ```
 
     *   Start the Frontend:
 
         ```sh
+        cd Frontend
         npm run dev
         ```
 
@@ -148,7 +152,7 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
 
 *   **"Webhook error: Error: No matching signature found"**: This usually means your `CLERK_WEBHOOK_SECRET` is incorrect or the request body is not being parsed correctly. Double-check your `.env` file and ensure you're using `express.raw({ type: 'application/json' })` middleware for the `/webhooks/clerk` route.
 *   **Database Connection Errors**: Verify that your Postgres credentials in the `.env` file are correct and that your database is running.
-*   **"self-signed certificate in certificate chain"**: Your Postgres provider signs its certificates with its own CA. If the provider publishes that CA certificate (e.g. Supabase, AWS RDS), download it and point `PGSSLROOTCERT` in `server/.env` at it. If it doesn't (e.g. Railway), set `PGSSL_REJECT_UNAUTHORIZED=false`.
+*   **"self-signed certificate in certificate chain"**: Your Postgres provider signs its certificates with its own CA. If the provider publishes that CA certificate (e.g. Supabase, AWS RDS), download it and point `PGSSLROOTCERT` in `Backend/.env` at it. If it doesn't (e.g. Railway), set `PGSSL_REJECT_UNAUTHORIZED=false`.
 *   **Server hangs at startup without logging "Listening on port"**: It is probably dialing the wrong Postgres port. Set `PGPORT` to your provider's port; hosted proxies often use one other than 5432.
 *   **ngrok Errors**: Make sure `ngrok` is running correctly and that the forwarding URL is accessible.
     *   Ensure you have added your authtoken using `ngrok config add-authtoken $YOUR_AUTHTOKEN`.
