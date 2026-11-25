@@ -23,7 +23,7 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
 -   **File Storage**: UploadThing
 -   **Auth**: Clerk
 -   **APIs**: ElevenLabs Text-to-Speech API, Clerk Webhooks
--   **Database**: Neon Postgres
+-   **Database**: Postgres
 -   **Tunneling**: ngrok
 
 ## Setup Instructions
@@ -59,11 +59,12 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
 
       ```
       PGHOST=your_postgres_host
-      PGHOST_UNPOOLED=your_postgres_unpooled_host
+      PGPORT=5432 # optional: defaults to 5432
       PGUSER=your_postgres_user
       PGDATABASE=your_postgres_database
       PGPASSWORD=your_postgres_password
       PGSSLROOTCERT=./your_provider_ca.crt # optional: CA certificate for providers with a private root (e.g. Supabase, AWS RDS)
+      PGSSL_REJECT_UNAUTHORIZED=false # optional: only for providers whose certificate can't be verified (e.g. Railway)
 
       UPLOADTHING_TOKEN=your_uploadthing_token
       UPLOADTHING_IS_DEV=true # local development only; remove in production
@@ -92,6 +93,10 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
     *   PDFs upload from the browser straight to UploadThing through the server's `/api/uploadthing` route. `UPLOADTHING_IS_DEV=true` lets UploadThing report finished uploads back to a local server without a public URL. In production, UploadThing calls that route over the internet; if it can't work out the server's public URL from the request, set `UPLOADTHING_CALLBACK_URL=https://your-server-domain/api/uploadthing`.
     *   `REDIS_URL` points at the Redis that holds the per-user rate limits and daily text-to-speech budgets, so every server instance shares one count. Any Redis you can reach works, local or hosted. The server won't start if it can't connect.
     *   If Redis goes down while the server is running, text-to-speech, PDF uploads and saving PDF details return 503 until it's back. Listing and deleting PDFs keep working without limits.
+    *   The server always connects to Postgres over TLS and, by default, verifies the certificate against the system's trusted CAs, or against `PGSSLROOTCERT` when set. `PGSSL_REJECT_UNAUTHORIZED=false` keeps the connection encrypted but skips that check, so the server can't confirm it is talking to your database. Use it only when the provider's certificate can't be verified, and preferably over a private network.
+    *   **Railway Postgres:** each database signs its certificate with its own CA, which Railway doesn't publish, so set `PGSSL_REJECT_UNAUTHORIZED=false`.
+        *   Server on Railway (private network): set `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD` and `PGDATABASE` to the Postgres service's variables of the same name, e.g. `PGHOST=${{Postgres.PGHOST}}`. Its host ends in `.railway.internal` and its port is 5432.
+        *   Server outside Railway: turn on public networking for the Postgres service, then use its `RAILWAY_TCP_PROXY_DOMAIN` as `PGHOST` and `RAILWAY_TCP_PROXY_PORT` as `PGPORT`.
 
 4.  **Set up ngrok**
 
@@ -141,7 +146,8 @@ PlayAI Book Reader is a web application that allows users to upload and read PDF
 
 *   **"Webhook error: Error: No matching signature found"**: This usually means your `CLERK_WEBHOOK_SECRET` is incorrect or the request body is not being parsed correctly. Double-check your `.env` file and ensure you're using `express.raw({ type: 'application/json' })` middleware for the `/webhooks/clerk` route.
 *   **Database Connection Errors**: Verify that your Postgres credentials in the `.env` file are correct and that your database is running.
-*   **"self-signed certificate in certificate chain"**: Your Postgres provider signs its certificates with its own CA. Download the provider's CA certificate and point `PGSSLROOTCERT` in `server/.env` at it.
+*   **"self-signed certificate in certificate chain"**: Your Postgres provider signs its certificates with its own CA. If the provider publishes that CA certificate (e.g. Supabase, AWS RDS), download it and point `PGSSLROOTCERT` in `server/.env` at it. If it doesn't (e.g. Railway), set `PGSSL_REJECT_UNAUTHORIZED=false`.
+*   **Server hangs at startup without logging "Listening on port"**: It is probably dialing the wrong Postgres port. Set `PGPORT` to your provider's port; hosted proxies often use one other than 5432.
 *   **ngrok Errors**: Make sure `ngrok` is running correctly and that the forwarding URL is accessible.
     *   Ensure you have added your authtoken using `ngrok config add-authtoken $YOUR_AUTHTOKEN`.
 *   **UploadThing Errors**: Make sure `UPLOADTHING_TOKEN` is set correctly.

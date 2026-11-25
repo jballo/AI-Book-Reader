@@ -191,15 +191,20 @@ app.all("/api/uploadthing", identifyUploader, uploadLimiter, express.text({ type
   }
 });
 
-const { PGHOST, PGDATABASE, PGUSER, PGPASSWORD, PGSSLROOTCERT } = process.env;
+const { PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD, PGSSLROOTCERT, PGSSL_REJECT_UNAUTHORIZED } = process.env;
 
 const pool = new Pool({
   host: PGHOST,
   database: PGDATABASE,
   user: PGUSER,
   password: PGPASSWORD,
-  port: 5432,
-  ssl: PGSSLROOTCERT ? { ca: fs.readFileSync(PGSSLROOTCERT, "utf8") } : true,
+  port: PGPORT,
+  ssl:
+    PGSSL_REJECT_UNAUTHORIZED === "false"
+      ? { rejectUnauthorized: false }
+      : PGSSLROOTCERT
+        ? { ca: fs.readFileSync(PGSSLROOTCERT, "utf8") }
+        : true,
 });
 
 pool.on("error", (err) => {
