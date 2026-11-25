@@ -4,6 +4,15 @@ import { auth } from "@clerk/nextjs/server";
 
 const UNAUTHORIZED = { success: false, error: "Unauthorized" } as const;
 
+function apiUrl(path: string) {
+    const baseUrl = process.env.API_BASE_URL?.trim().replace(/\/+$/, "");
+    if (baseUrl) return new URL(`${baseUrl}${path}`);
+    if (process.env.NODE_ENV === "production") {
+        throw new Error("API_BASE_URL is not set. Set it to the URL of the Express server.");
+    }
+    return new URL(`http://127.0.0.1:5001${path}`);
+}
+
 async function failedRequestError(response: Response, fallback: string) {
     if (response.status !== 429 && response.status !== 503) return fallback;
     const body = await response.json().catch(() => null);
@@ -29,7 +38,7 @@ export async function UploadPdfMetadata({
     console.log("pdf_name: ", pdf_name);
     console.log("pdf_url: ", pdf_url);
     try {
-        const url_endpoint = new URL(process.env.UPLOAD_PDF_METADATA_ENDPOINT || "http://127.0.0.1:5001/upload-pdf-metadata");
+        const url_endpoint = apiUrl("/upload-pdf-metadata");
 
         const response = await fetch(url_endpoint.toString(), {
             method: "POST",
@@ -72,7 +81,7 @@ export async function ListPdfs() {
 
 
     try {
-        const url_endpoint = new URL(process.env.LIST_PDFS_ENDPOINT || "http://127.0.0.1:5001/list-pdfs");
+        const url_endpoint = apiUrl("/list-pdfs");
 
         // url_endpoint.searchParams.set("userId", userId);
 
@@ -120,7 +129,7 @@ export async function DeletePdf(id: string) {
 
     console.log("id: ", id);
     try {
-        const url_endpoint = new URL(process.env.DELETE_PDF_ENDPOINT || "http://127.0.0.1:5001/delete-pdf");
+        const url_endpoint = apiUrl("/delete-pdf");
 
         const response = await fetch(url_endpoint.toString(), {
             method: "POST",

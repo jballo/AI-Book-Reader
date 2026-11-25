@@ -1,6 +1,15 @@
 'use server'
 import { auth } from '@clerk/nextjs/server';
 
+function apiUrl(path: string) {
+  const baseUrl = process.env.API_BASE_URL?.trim().replace(/\/+$/, '');
+  if (baseUrl) return new URL(`${baseUrl}${path}`);
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('API_BASE_URL is not set. Set it to the URL of the Express server.');
+  }
+  return new URL(`http://127.0.0.1:5001${path}`);
+}
+
 export async function convertTextToSpeech(text: string): Promise<{
   audioUrl: string;
   success: boolean;
@@ -16,7 +25,7 @@ export async function convertTextToSpeech(text: string): Promise<{
     console.log(`Converting text (${text.length} chars) to speech...`);
     
     // Call your Express endpoint
-    const url_endpoint = new URL(process.env.TEXT_TO_SPEECH_ENDPOINT || "http://127.0.0.1:5001/text-to-speech");
+    const url_endpoint = apiUrl('/text-to-speech');
     
     const controller = new AbortController();
     // Set a reasonable timeout
