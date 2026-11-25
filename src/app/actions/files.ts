@@ -28,7 +28,6 @@ export async function UploadPdfMetadata({
     console.log("pdf_key: ", pdf_key);
     console.log("pdf_name: ", pdf_name);
     console.log("pdf_url: ", pdf_url);
-    console.log("pdf_text: ", pdf_text);
     try {
         const url_endpoint = new URL(process.env.UPLOAD_PDF_METADATA_ENDPOINT || "http://127.0.0.1:5001/upload-pdf-metadata");
 
