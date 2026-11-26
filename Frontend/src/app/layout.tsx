@@ -18,7 +18,7 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "PlayAI Book Reader",
+  title: "AI Book Reader",
   description: "Reading made easier by a click.",
 };
 
