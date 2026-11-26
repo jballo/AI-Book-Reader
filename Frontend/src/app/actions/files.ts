@@ -50,7 +50,10 @@ export async function UploadPdfMetadata({
         })
 
         if(!response.ok) {
-            throw new Error(await failedRequestError(response, "Failed to upload pdf metadata"));
+            return {
+                success: false,
+                error: await failedRequestError(response, "Try uploading it again."),
+            }
         }
 
         const result = await response.json();
@@ -66,8 +69,7 @@ export async function UploadPdfMetadata({
         console.error("Error: ", error);
         return {
             success: false,
-            error:
-                error instanceof Error ? error.message : "Failed to upload pdf to uploathing.",
+            error: "Try uploading it again.",
         }
     }
 }
