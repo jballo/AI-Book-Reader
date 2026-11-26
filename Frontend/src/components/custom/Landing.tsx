@@ -84,10 +84,10 @@ export default function Landing() {
               Sign in
             </Link>
             <Link
-              href="/sign-up"
+              href="/waitlist"
               className="rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
             >
-              Start reading
+              Join the waitlist
             </Link>
           </nav>
         </div>
@@ -107,10 +107,10 @@ export default function Landing() {
             </p>
             <div className="flex flex-wrap gap-3">
               <Link
-                href="/sign-up"
+                href="/waitlist"
                 className="rounded-full bg-primary px-7 py-4 font-semibold text-primary-foreground transition-opacity hover:opacity-90"
               >
-                Upload a PDF
+                Join the waitlist
               </Link>
               <button
                 type="button"
@@ -209,10 +209,10 @@ export default function Landing() {
             away.
           </p>
           <Link
-            href="/sign-up"
+            href="/waitlist"
             className="rounded-full bg-primary px-7 py-4 font-semibold text-primary-foreground transition-opacity hover:opacity-90"
           >
-            Upload your first PDF
+            Join the waitlist
           </Link>
         </section>
       </main>
