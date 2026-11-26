@@ -15,7 +15,13 @@ export interface AudioProps {
 
 export const PLAYBACK_SPEEDS = [0.75, 1, 1.25, 1.5, 2];
 const SKIP_SECONDS = 10;
-const AUDIO_ERROR_MESSAGE = "Couldn't read this page aloud. Try again.";
+
+function audioErrorMessage(error?: string) {
+    const reason = error === "Unauthorized"
+        ? "Your session expired. Sign in and try again."
+        : error || "Try again.";
+    return `Couldn't read this page aloud. ${reason}`;
+}
 
 const ROUND_BUTTON =
     "flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent";
@@ -26,7 +32,7 @@ type AudioState =
     | { status: "idle" }
     | { status: "loading" }
     | { status: "ready"; src: string }
-    | { status: "error" };
+    | { status: "error"; message: string };
 
 interface AudioPlayerComponentProps {
     text: string;
@@ -66,16 +72,16 @@ export default function AudioPlayer({
     const hasAutoStartedRef = useRef(false);
 
     const fetchAudio = async () => {
-        try {
-            const result = await convertTextToSpeech(text);
-            if (!result.success || !result.audioUrl) {
-                throw new Error(result.error || "No audio returned");
-            }
-            setAudio({ status: "ready", src: result.audioUrl });
-        } catch (error) {
+        const result = await convertTextToSpeech(text).catch((error) => {
             console.error("Error generating page audio:", error);
-            setAudio({ status: "error" });
+            return null;
+        });
+        if (result?.success && result.audioUrl) {
+            setAudio({ status: "ready", src: result.audioUrl });
+            return;
         }
+        if (result) console.error("Error generating page audio:", result.error);
+        setAudio({ status: "error", message: audioErrorMessage(result?.error) });
     };
 
     const startAutoPlay = useEffectEvent(() => {
@@ -129,7 +135,7 @@ export default function AudioPlayer({
     if (!text) statusMessage = "There's no text on this page to read aloud.";
     else if (audio.status === "idle") statusMessage = `Press play to hear page ${pageNumber}.`;
     else if (isLoading) statusMessage = `Preparing the voice for page ${pageNumber}…`;
-    else if (audio.status === "error") statusMessage = AUDIO_ERROR_MESSAGE;
+    else if (audio.status === "error") statusMessage = audio.message;
 
     return (
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
@@ -147,7 +153,7 @@ export default function AudioPlayer({
                     onPause={() => setIsPlaying(false)}
                     onError={() => {
                         setIsPlaying(false);
-                        setAudio({ status: "error" });
+                        setAudio({ status: "error", message: audioErrorMessage() });
                     }}
                     onEnded={() => {
                         setIsPlaying(false);

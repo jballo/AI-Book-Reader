@@ -97,7 +97,10 @@ export async function ListPdfs() {
         });
 
         if (!response.ok) {
-            throw new Error(await failedRequestError(response, "Failed to retrieve list of pdfs"));
+            return {
+                success: false,
+                error: await failedRequestError(response, "Try again."),
+            }
         }
 
         const result = await response.json();
@@ -113,8 +116,7 @@ export async function ListPdfs() {
         console.log("Error: ", error);
         return {
             success: false,
-            error:
-                error instanceof Error ? error.message : "Failed to retrieve list of pdfs",
+            error: "Try again.",
         }
     }
 }
@@ -143,7 +145,10 @@ export async function DeletePdf(id: string) {
         })
 
         if (!response.ok) {
-            throw new Error(await failedRequestError(response, "Failed to delete pdf"));
+            return {
+                success: false,
+                error: await failedRequestError(response, "Try again."),
+            }
         }
 
         const result = await response.json();
@@ -157,8 +162,7 @@ export async function DeletePdf(id: string) {
         console.log("Error: ", error);
         return {
             success: false,
-            error:
-                error instanceof Error ? error.message : "Failed to delete pdf",
+            error: "Try again.",
         }
     }
 }
