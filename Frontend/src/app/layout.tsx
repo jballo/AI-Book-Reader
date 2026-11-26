@@ -33,6 +33,7 @@ export default function RootLayout({
         className={`font-sans antialiased`}
       >
         <ClerkProvider
+          waitlistUrl="/waitlist"
           appearance={{
             variables: {
               colorPrimary: "#F4F4F5",
