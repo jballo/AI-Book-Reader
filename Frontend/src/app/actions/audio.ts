@@ -10,6 +10,15 @@ function apiUrl(path: string) {
   return new URL(`http://127.0.0.1:5001${path}`);
 }
 
+const FALLBACK_ERROR = 'Try again.';
+const STATUSES_WITH_READABLE_ERROR = [400, 429, 503];
+
+async function failedRequestError(response: Response) {
+  if (!STATUSES_WITH_READABLE_ERROR.includes(response.status)) return FALLBACK_ERROR;
+  const body = await response.json().catch(() => null);
+  return typeof body?.error === 'string' ? body.error : FALLBACK_ERROR;
+}
+
 export async function convertTextToSpeech(text: string): Promise<{
   audioUrl: string;
   success: boolean;
@@ -44,15 +53,11 @@ export async function convertTextToSpeech(text: string): Promise<{
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      let errorDetail = '';
-      try {
-        const errorJson = await response.json();
-        errorDetail = errorJson.error || response.statusText;
-      } catch {
-        errorDetail = response.statusText;
-      }
-      
-      throw new Error(`API Error: ${errorDetail}`);
+      return {
+        audioUrl: '',
+        success: false,
+        error: await failedRequestError(response),
+      };
     }
 
     // Get the audio data and convert to base64 for efficient transfer
@@ -70,7 +75,7 @@ export async function convertTextToSpeech(text: string): Promise<{
     return {
       audioUrl: '',
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred'
+      error: FALLBACK_ERROR
     };
   }
 }
