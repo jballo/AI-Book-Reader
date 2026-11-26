@@ -212,7 +212,7 @@ pool.on("error", (err) => {
 });
 
 app.get("/", (req, res) => {
-  res.send("Hello PlayAI!");
+  res.send("Hello AI Book Reader!");
 });
 
 app.post("/upload-pdf-metadata", requireUser, metadataLimiter, express.json({ limit: "5mb" }), async (req, res) => {
