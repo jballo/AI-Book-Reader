@@ -54,6 +54,7 @@ export default function FileUploader({ setPopUpActive, uploadPdfMetadata, setPdf
     const { user, isSignedIn } = useUser();
     const { getToken } = useAuth();
     const [isDragging, setIsDragging] = useState<boolean>(false)
+    const [saveError, setSaveError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
@@ -108,6 +109,7 @@ export default function FileUploader({ setPopUpActive, uploadPdfMetadata, setPdf
     };
 
     const savePdf = async(file: File) => {
+        setSaveError(null);
         if(!(user && isSignedIn)){
             console.log("User not signed in and/or authenticated...");
             setPopUpActive(true);
@@ -141,12 +143,24 @@ export default function FileUploader({ setPopUpActive, uploadPdfMetadata, setPdf
             const pdfText = await extractAllPagesText(pdfUrl);
             console.log("pdfText: ", pdfText);
 
-           await uploadPdfMetadata({
+            const saveResult = await uploadPdfMetadata({
                 pdf_key: pdfKey,
                 pdf_name: pdfName,
                 pdf_url: pdfUrl,
                 pdf_text: JSON.stringify(pdfText || []),
-            })
+            }).catch((error) => {
+                console.error("Saving PDF details failed: ", error);
+                return null;
+            });
+
+            if (!saveResult?.success) {
+                const reason = saveResult?.error === "Unauthorized"
+                    ? "Your session expired. Sign in and upload it again."
+                    : saveResult?.error || "Try uploading it again.";
+                setSaveError(`Couldn't save "${pdfName}", so it wasn't added to your library. ${reason}`);
+                return;
+            }
+
             const newPdf: ListedPDF = {
                 url: pdfUrl,
                 key: pdfKey,
@@ -204,6 +218,11 @@ export default function FileUploader({ setPopUpActive, uploadPdfMetadata, setPdf
                 >
                     Select PDF file
                 </Button>
+                {saveError && (
+                    <p role="alert" className="mx-auto mt-6 max-w-md rounded-lg bg-destructive/20 px-4 py-3 text-sm">
+                        {saveError}
+                    </p>
+                )}
             </div>
         </motion.div>
     );
