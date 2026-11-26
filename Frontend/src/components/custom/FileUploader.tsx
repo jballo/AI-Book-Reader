@@ -1,23 +1,25 @@
 "use client";
 import { motion } from "framer-motion";
-import { Shuffle } from "lucide-react";
+import { FileUp } from "lucide-react";
 import { Button } from "../ui/button";
 import { useRef, useState } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useAuth, useUser } from "@clerk/nextjs";
 import { pdfjs } from 'react-pdf';
+import { genUploader } from "uploadthing/client";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
   import.meta.url,
 ).toString();
 
+const { uploadFiles } = genUploader({
+    url: process.env.NEXT_PUBLIC_UPLOADTHING_URL || "http://localhost:5001/api/uploadthing",
+    package: "uploadthing/client",
+});
+
 interface BasePDF {
     url: string,
     key: string,
-}
-
-interface UploadedPDF extends BasePDF{
-    type: 'uploaded';
 }
 
 interface ListedPDF extends BasePDF {
@@ -27,22 +29,17 @@ interface ListedPDF extends BasePDF {
 }
 
 interface PdfProps {
-    uploadPdf: (
-        pdf: FormData
-    ) => Promise<{ success: boolean; response?: UploadedPDF; error?: string; }>;
-    uploadPdfMetadata: (
-        userId: string,
-        pdf_key: string,
-        pdf_name: string,
-        pdf_url: string,
-        pdf_text: string[]
-    ) => Promise<{ success: boolean; response?: boolean; error?: string; }>;
+    uploadPdfMetadata: (metadata: {
+        pdf_key: string;
+        pdf_name: string;
+        pdf_url: string;
+        pdf_text: string;
+    }) => Promise<{ success: boolean; response?: boolean; error?: string; }>;
 }
 
 
 interface FileUploaderProps {
     setPopUpActive: (val: boolean) => void;
-    uploadPdf: PdfProps["uploadPdf"];
     uploadPdfMetadata: PdfProps["uploadPdfMetadata"];
     setPdfFile: (val: string) => void;
     setPdfName: (val: string) => void;
@@ -53,9 +50,11 @@ interface FileUploaderProps {
 
 }
 
-export default function FileUploader({ setPopUpActive, uploadPdf, uploadPdfMetadata, setPdfFile, setPdfName, setPagesText, userPdfs, setPdfView, setUserPdfs }: FileUploaderProps){
+export default function FileUploader({ setPopUpActive, uploadPdfMetadata, setPdfFile, setPdfName, setPagesText, userPdfs, setPdfView, setUserPdfs }: FileUploaderProps){
     const { user, isSignedIn } = useUser();
+    const { getToken } = useAuth();
     const [isDragging, setIsDragging] = useState<boolean>(false)
+    const [saveError, setSaveError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
@@ -110,6 +109,7 @@ export default function FileUploader({ setPopUpActive, uploadPdf, uploadPdfMetad
     };
 
     const savePdf = async(file: File) => {
+        setSaveError(null);
         if(!(user && isSignedIn)){
             console.log("User not signed in and/or authenticated...");
             setPopUpActive(true);
@@ -119,18 +119,20 @@ export default function FileUploader({ setPopUpActive, uploadPdf, uploadPdfMetad
         const pdfName = file.name;
             console.log("pdfName: ", pdfName);
 
-            const actionFormData = new FormData();
-            actionFormData.append("pdf", file);
+            const uploadResult = await uploadFiles("pdfUploader", {
+                files: [file],
+                headers: async () => ({ Authorization: `Bearer ${await getToken()}` }),
+            }).catch((error) => {
+                console.error("PDF upload failed: ", error);
+                return null;
+            });
 
-            const uploadpdf_response = await uploadPdf(actionFormData);
-
-            if (!uploadpdf_response.success){
-                console.error("PDF upload failed");
+            if (!uploadResult){
                 return;
             }
-            
-            const pdfUrl = uploadpdf_response.response?.url || "";
-            const pdfKey = uploadpdf_response.response?.key || "";
+
+            const pdfUrl = uploadResult[0]?.ufsUrl || "";
+            const pdfKey = uploadResult[0]?.key || "";
             setPdfFile(pdfUrl);
             setPdfName(pdfName);
 
@@ -141,13 +143,24 @@ export default function FileUploader({ setPopUpActive, uploadPdf, uploadPdfMetad
             const pdfText = await extractAllPagesText(pdfUrl);
             console.log("pdfText: ", pdfText);
 
-           await uploadPdfMetadata(
-                user.id,
-                pdfKey,
-                pdfName,
-                pdfUrl,
-                pdfText || [],
-            )
+            const saveResult = await uploadPdfMetadata({
+                pdf_key: pdfKey,
+                pdf_name: pdfName,
+                pdf_url: pdfUrl,
+                pdf_text: JSON.stringify(pdfText || []),
+            }).catch((error) => {
+                console.error("Saving PDF details failed: ", error);
+                return null;
+            });
+
+            if (!saveResult?.success) {
+                const reason = saveResult?.error === "Unauthorized"
+                    ? "Your session expired. Sign in and upload it again."
+                    : saveResult?.error || "Try uploading it again.";
+                setSaveError(`Couldn't save "${pdfName}", so it wasn't added to your library. ${reason}`);
+                return;
+            }
+
             const newPdf: ListedPDF = {
                 url: pdfUrl,
                 key: pdfKey,
@@ -185,7 +198,7 @@ export default function FileUploader({ setPopUpActive, uploadPdf, uploadPdfMetad
     return(
         <motion.div
             className={`border-2 border-dashed rounded-2xl p-12 transition-all duration-300 ease-in-out ${
-                isDragging ? "border-[#C1FF7A] bg-[#C1FF7A] bg-opacity-5" : "border-zinc-800 hover:border-zinc-700"
+                isDragging ? "border-highlight bg-highlight/5" : "border-border hover:border-zinc-600"
             }`}
             onDragEnter={handleDragEnter}
             onDragOver={handleDragOver}
@@ -195,16 +208,21 @@ export default function FileUploader({ setPopUpActive, uploadPdf, uploadPdfMetad
             whileTap={{ scale: 0.99 }}
         >
             <div className="text-center">
-                <Shuffle className="mx-auto h-12 w-12 text-zinc-500" />
-                <h2 className="mt-6 text-2xl font-semibold">Upload your PDF</h2>
-                <p className="mt-2 text-zinc-400">Drag and drop your file here, or click to select</p>
+                <FileUp className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h2 className="mt-6 font-serif text-3xl font-normal">Upload your PDF</h2>
+                <p className="mt-2 text-muted-foreground">Drag and drop your file here, or click to select</p>
                 <input ref={fileInputRef} type="file" accept=".pdf" className="sr-only" onChange={onFileChange} />
                 <Button
                     onClick={() => fileInputRef.current?.click()}
-                    className="mt-6 bg-[#C1FF7A] text-black hover:bg-[#B1EF6A] transition-colors"
+                    className="mt-6 rounded-full bg-highlight px-6 text-highlight-foreground transition-colors hover:bg-highlight/90"
                 >
                     Select PDF file
                 </Button>
+                {saveError && (
+                    <p role="alert" className="mx-auto mt-6 max-w-md rounded-lg bg-destructive/20 px-4 py-3 text-sm">
+                        {saveError}
+                    </p>
+                )}
             </div>
         </motion.div>
     );

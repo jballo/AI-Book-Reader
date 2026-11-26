@@ -1,15 +1,40 @@
 'use server'
+import { auth } from '@clerk/nextjs/server';
+
+function apiUrl(path: string) {
+  const baseUrl = process.env.API_BASE_URL?.trim().replace(/\/+$/, '');
+  if (baseUrl) return new URL(`${baseUrl}${path}`);
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('API_BASE_URL is not set. Set it to the URL of the Express server.');
+  }
+  return new URL(`http://127.0.0.1:5001${path}`);
+}
+
+const FALLBACK_ERROR = 'Try again.';
+const STATUSES_WITH_READABLE_ERROR = [400, 429, 503];
+
+async function failedRequestError(response: Response) {
+  if (!STATUSES_WITH_READABLE_ERROR.includes(response.status)) return FALLBACK_ERROR;
+  const body = await response.json().catch(() => null);
+  return typeof body?.error === 'string' ? body.error : FALLBACK_ERROR;
+}
 
 export async function convertTextToSpeech(text: string): Promise<{
   audioUrl: string;
   success: boolean;
   error?: string;
 }> {
+  const { userId, getToken } = await auth();
+  const sessionToken = userId ? await getToken() : null;
+  if (!sessionToken) {
+    return { audioUrl: '', success: false, error: 'Unauthorized' };
+  }
+
   try {
     console.log(`Converting text (${text.length} chars) to speech...`);
     
     // Call your Express endpoint
-    const url_endpoint = new URL(process.env.TEXT_TO_SPEECH_ENDPOINT || "http://127.0.0.1:5001/text-to-speech");
+    const url_endpoint = apiUrl('/text-to-speech');
     
     const controller = new AbortController();
     // Set a reasonable timeout
@@ -19,7 +44,7 @@ export async function convertTextToSpeech(text: string): Promise<{
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-API-KEY': process.env.API_KEY || '',
+        'Authorization': `Bearer ${sessionToken}`,
       },
       body: JSON.stringify({ text }),
       signal: controller.signal
@@ -28,15 +53,11 @@ export async function convertTextToSpeech(text: string): Promise<{
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      let errorDetail = '';
-      try {
-        const errorJson = await response.json();
-        errorDetail = errorJson.error || response.statusText;
-      } catch {
-        errorDetail = response.statusText;
-      }
-      
-      throw new Error(`API Error: ${errorDetail}`);
+      return {
+        audioUrl: '',
+        success: false,
+        error: await failedRequestError(response),
+      };
     }
 
     // Get the audio data and convert to base64 for efficient transfer
@@ -54,7 +75,7 @@ export async function convertTextToSpeech(text: string): Promise<{
     return {
       audioUrl: '',
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred'
+      error: FALLBACK_ERROR
     };
   }
 }

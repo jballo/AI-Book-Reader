@@ -1,27 +1,21 @@
 "use client";
 import "core-js/proposals/promise-with-resolvers";
 import { useUser } from "@clerk/nextjs";
-import { Button } from "../ui/button";
 import { useEffect, useState } from "react";
 // import PdfView from "./PdfView";
 import PdfListView from "./PdfListView";
 import FileUploader from "./FileUploader";
-import InformationalBanner from "./InformationalBanner";
 import Header from "./Header";
 import dynamic from "next/dynamic";
 
 const PdfView = dynamic(() => import('./PdfView'), {
   ssr: false,
-  loading: () => <p>Loading PDF viewer...</p>, // Optional: Add a loading indicator
+  loading: () => <p className="p-10 text-sm text-muted-foreground">Loading PDF viewer...</p>, // Optional: Add a loading indicator
 });
 
 interface BasePDF {
     url: string,
     key: string,
-}
-
-interface UploadedPDF extends BasePDF{
-    type: 'uploaded';
 }
 
 interface ListedPDF extends BasePDF {
@@ -35,19 +29,13 @@ interface ListedPDF extends BasePDF {
 
 
 interface PdfProps {
-    uploadPdf: (
-        pdf: FormData
-    ) => Promise<{ success: boolean; response?: UploadedPDF; error?: string; }>;
-    uploadPdfMetadata: (
-        userId: string,
-        pdf_key: string,
-        pdf_name: string,
-        pdf_url: string,
-        pdf_text: string[]
-    ) => Promise<{ success: boolean; response?: boolean; error?: string; }>;
-    listPdfs: (
-        userId: string,
-    ) => Promise<{ success: boolean; response?: ListedPDF[]; error?: string; }>;
+    uploadPdfMetadata: (metadata: {
+        pdf_key: string;
+        pdf_name: string;
+        pdf_url: string;
+        pdf_text: string;
+    }) => Promise<{ success: boolean; response?: boolean; error?: string; }>;
+    listPdfs: () => Promise<{ success: boolean; response?: ListedPDF[]; error?: string; }>;
     deletePdf: (
         id: string,
     ) => Promise<{ success: boolean; response?: string; error?: string }>;
@@ -64,8 +52,15 @@ interface AudioProps {
 }
 
 
+function failureReason(error?: string) {
+    return error === "Unauthorized"
+        ? "Your session expired. Sign in and try again."
+        : error || "Try again.";
+}
+
+const ERROR_ALERT = "rounded-lg bg-destructive/20 px-4 py-3 text-sm";
+
 interface DashboardProps {
-    uploadPdf: PdfProps["uploadPdf"];
     uploadPdfMetadata: PdfProps["uploadPdfMetadata"];
     listPdfs: PdfProps["listPdfs"];
     convertTextToSpeech: AudioProps["convertTextToSpeech"];
@@ -73,7 +68,7 @@ interface DashboardProps {
 }
 
 
-export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, convertTextToSpeech, deletePdf }: DashboardProps){
+export default function Dashboard({ uploadPdfMetadata, listPdfs, convertTextToSpeech, deletePdf }: DashboardProps){
     const { user, isSignedIn, isLoaded } = useUser();
     const [numPages, setNumPages] = useState<number>();
     const [pageNumber, setPageNumber] = useState<number>();
@@ -93,20 +88,26 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
 
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false);
 
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+
     const loadPdfs = async (userId: string | undefined) => {
         if(!userId) return;
 
         setIsLoadingPdfs(true);
+        setLoadError(null);
 
         try {
-            const response = await listPdfs(userId);
-            if(response.success && response.response && response.response.length > 0){
-                    setUserPdfs(response.response);
-            } else {
-                setUserPdfs([]);
+            const response = await listPdfs();
+            if (!response.success) {
+                console.error("Error loading PDFs: ", response.error);
+                setLoadError(`Couldn't load your library. ${failureReason(response.error)}`);
+                return;
             }
+            setUserPdfs(response.response ?? []);
         } catch (error) {
             console.error("Error loading PDFs: ", error);
+            setLoadError(`Couldn't load your library. ${failureReason()}`);
         } finally {
             setIsLoadingPdfs(false);
         }
@@ -116,6 +117,8 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
         // Clear PDFs immediately on sign-out
         if (!isSignedIn && isLoaded) {
             setUserPdfs([]);
+            setLoadError(null);
+            setDeleteError(null);
             return;
         }
         // Load PDFs when user signs in and isLoaded
@@ -134,11 +137,15 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
 
     const deleteOnClick = async (id: string) => {
         if (!id) return;
+        setDeleteError(null);
+        const pdfName = userPdfs.find(pdf => pdf.key === id)?.name;
+        const failedDelete = `Couldn't delete ${pdfName ? `"${pdfName}"` : "this PDF"}.`;
         try {
             const response = await deletePdf(id);
             
             if (!response.success) {
                 console.error("Error: ", response.error);
+                setDeleteError(`${failedDelete} ${failureReason(response.error)}`);
                 return;
             }
 
@@ -150,31 +157,26 @@ export default function Dashboard({ uploadPdf, uploadPdfMetadata, listPdfs, conv
 
         } catch (error) {
             console.error("Error: ", error);
+            setDeleteError(`${failedDelete} ${failureReason()}`);
         }
     }
 
-    return (<div className="min-h-screen bg-black text-white">
-        {/* Top Banner */}
-        <InformationalBanner />
-        
+    if (pdfFile && pdfView) {
+        return <PdfView setPdfView={setPdfView} pdfName={pdfName} numPages={numPages || 1} pdfFile={pdfFile} pagesText={pagesText} convertTextToSpeech={convertTextToSpeech} setNumPages={setNumPages} pageNumber={pageNumber || 1} setPageNumber={setPageNumber} />;
+    }
+
+    return (<div className="min-h-screen bg-background text-foreground">
         <div className="flex flex-col max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <Header popUpActive={popUpActive} setPdfView={setPdfView} />
-            {(!pdfFile || !pdfView) ? (
-                <div className="space-y-8">
-                    <FileUploader setPopUpActive={setPopUpActive} uploadPdf={uploadPdf} uploadPdfMetadata={uploadPdfMetadata} setPdfFile={setPdfFile} setPdfName={setPdfName} setPagesText={setPagesText} userPdfs={userPdfs} setPdfView={setPdfView} setUserPdfs={setUserPdfs} />
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-semibold">PDF Selection</h2>
-                            <Button variant="ghost" className="text-zinc-400 hover:text-white">
-                            View all
-                            </Button>
-                        </div>
-                        <PdfListView userPdfs={userPdfs} isLoadingPdfs={isLoadingPdfs} isLoaded={isLoaded} isDeleteDialogOpen={isDeleteDialogOpen} setIsDeleteDialogOpen={setIsDeleteDialogOpen} setPdfFile={setPdfFile} setPagesText={setPagesText} setNumPages={setNumPages} setPdfName={setPdfName} setPageNumber={setPageNumber} setPdfView={setPdfView} deleteOnClick={deleteOnClick} />
-                    </div>
+            <div className="space-y-8">
+                <FileUploader setPopUpActive={setPopUpActive} uploadPdfMetadata={uploadPdfMetadata} setPdfFile={setPdfFile} setPdfName={setPdfName} setPagesText={setPagesText} userPdfs={userPdfs} setPdfView={setPdfView} setUserPdfs={setUserPdfs} />
+                <div className="space-y-4">
+                    <h2 className="font-serif text-3xl font-normal">Your library</h2>
+                    {loadError && <p role="alert" className={ERROR_ALERT}>{loadError}</p>}
+                    {deleteError && <p role="alert" className={ERROR_ALERT}>{deleteError}</p>}
+                    {(!loadError || userPdfs.length > 0) && <PdfListView userPdfs={userPdfs} isLoadingPdfs={isLoadingPdfs} isLoaded={isLoaded} isDeleteDialogOpen={isDeleteDialogOpen} setIsDeleteDialogOpen={setIsDeleteDialogOpen} setPdfFile={setPdfFile} setPagesText={setPagesText} setNumPages={setNumPages} setPdfName={setPdfName} setPageNumber={setPageNumber} setPdfView={setPdfView} deleteOnClick={deleteOnClick} />}
                 </div>
-            ) : (
-                <PdfView setPdfView={setPdfView} pdfName={pdfName} numPages={numPages || 1} pdfFile={pdfFile} pagesText={pagesText} convertTextToSpeech={convertTextToSpeech} setNumPages={setNumPages} pageNumber={pageNumber || 1} setPageNumber={setPageNumber} />
-            )}
+            </div>
         </div>
   </div>);
 }

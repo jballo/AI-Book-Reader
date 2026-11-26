@@ -2,12 +2,7 @@
 
 import { OctagonX } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
-import {
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  SignOutButton,
-} from "@clerk/nextjs";
+import { Show, SignInButton, SignOutButton } from "@clerk/nextjs";
 import { Button } from "../ui/button";
 
 interface HeaderProps {
@@ -19,7 +14,7 @@ export default function Header({ popUpActive, setPdfView }: HeaderProps) {
   return (
     <header className="flex justify-between items-center mb-12">
       {popUpActive && (
-        <Alert className="w-80 absolute top-24 left-1/2 transform -translate-x-1/2 z-50 bg-[#C1FF7A] border-black">
+        <Alert className="w-80 absolute top-24 left-1/2 transform -translate-x-1/2 z-50 bg-highlight border-highlight text-highlight-foreground">
           <AlertTitle className="flex flex-row gap-2 text-xl">
             {" "}
             <OctagonX /> Alert!
@@ -36,21 +31,21 @@ export default function Header({ popUpActive, setPdfView }: HeaderProps) {
         onClick={() => {
           setPdfView(false);
         }}
-        className="text-5xl font-bold tracking-tight"
+        className="font-serif text-4xl font-normal sm:text-5xl"
       >
         AI Book Reader
       </h1>
       <div className="flex items-center space-x-2">
-        <SignedIn>
+        <Show when="signed-in">
           <SignOutButton>
-            <Button>Sign Out</Button>
+            <Button className="rounded-full px-5">Sign Out</Button>
           </SignOutButton>
-        </SignedIn>
-        <SignedOut>
+        </Show>
+        <Show when="signed-out">
           <SignInButton>
-            <Button>Sign In</Button>
+            <Button className="rounded-full px-5">Sign In</Button>
           </SignInButton>
-        </SignedOut>
+        </Show>
       </div>
     </header>
   );
